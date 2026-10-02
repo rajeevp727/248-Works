@@ -307,13 +307,14 @@ app.http("auth-verify-code", {
       let user = await read(userId(email), "user");
       if (!user) {
         user = {
-          id: userId(email), type: "user", email, normalizedEmail: email, role,
+          id: userId(email), type: "user", ownerId: userId(email), email, normalizedEmail: email, role,
           name: String(body.name || "").trim(),
           phone: String(body.phone || "").trim() || null,
           location: String(body.location || "").trim() || null,
           state: STATE, isEmailVerified: true, createdAt: iso(), updatedAt: iso()
         };
       } else {
+        user.ownerId = user.ownerId || user.id;
         user.isEmailVerified = true;
         if (!user.name && body.name) user.name = String(body.name).trim();
         if (user.role !== "Admin") user.role = role;
@@ -465,7 +466,7 @@ app.http("jobs", {
         description: String(body.description || "").trim(),
         vacancies: Math.max(1, Number(body.vacancies || 1)),
         skills: Array.isArray(body.skills) ? body.skills : [],
-        isActive: true, employerId: user.id, createdAt: iso(), updatedAt: iso()
+        isActive: true, employerId: user.id, ownerId: user.id, createdAt: iso(), updatedAt: iso()
       };
       await upsert(job);
       return reply(201, mapJob(job));
@@ -486,8 +487,12 @@ app.http("applications", {
       if (request.method === "GET") {
         if (user.role !== "JobSeeker") return reply(200, []);
         const rows = await query(
-          "SELECT * FROM c WHERE c.type=@type AND c.candidateId=@candidateId ORDER BY c.appliedAt DESC",
-          [{ name: "@type", value: "application" }, { name: "@candidateId", value: user.id }]
+          "SELECT * FROM c WHERE c.type=@type AND c.ownerId=@ownerId AND c.candidateId=@candidateId ORDER BY c.appliedAt DESC",
+          [
+            { name: "@type", value: "application" },
+            { name: "@ownerId", value: user.id },
+            { name: "@candidateId", value: user.id }
+          ]
         );
         const result = [];
         for (const row of rows) {
@@ -504,9 +509,10 @@ app.http("applications", {
       if (!job || !job.isActive || job.state !== STATE) return reply(404, { message: "Job not found." });
 
       const existing = (await query(
-        "SELECT TOP 1 * FROM c WHERE c.type=@type AND c.jobId=@jobId AND c.candidateId=@candidateId",
+        "SELECT TOP 1 * FROM c WHERE c.type=@type AND c.ownerId=@ownerId AND c.jobId=@jobId AND c.candidateId=@candidateId",
         [
           { name: "@type", value: "application" },
+          { name: "@ownerId", value: user.id },
           { name: "@jobId", value: jobId },
           { name: "@candidateId", value: user.id }
         ]
@@ -515,7 +521,7 @@ app.http("applications", {
 
       const application = {
         id: "application:" + crypto.randomUUID(), type: "application",
-        jobId, candidateId: user.id, candidateName: user.name || user.email,
+        ownerId: user.id, jobId, candidateId: user.id, candidateName: user.name || user.email,
         status: "Applied", appliedAt: iso()
       };
       await upsert(application);
