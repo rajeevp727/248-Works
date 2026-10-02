@@ -194,6 +194,31 @@ async function currentUser(request) {
     return null;
   }
 }
+
+function swaPrincipal(request) {
+  const header = request.headers.get("x-ms-client-principal") || "";
+  if (!header) return null;
+  try {
+    const json = Buffer.from(header, "base64").toString("utf8");
+    const principal = JSON.parse(json);
+    const provider = String(principal.identityProvider || "").toLowerCase();
+    const details = String(principal.userDetails || "").trim();
+    const claims = Array.isArray(principal.claims) ? principal.claims : [];
+    const claim = (types) => {
+      const found = claims.find((item) => types.includes(String(item.typ || "").toLowerCase()));
+      return found?.val ? String(found.val).trim() : "";
+    };
+    const email = emailOf(
+      claim(["email", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress", "preferred_username"]) ||
+      (details.includes("@") ? details : "")
+    );
+    if (!principal.userId || !email || !["google", "aad"].includes(provider)) return null;
+    return { provider, providerUserId: String(principal.userId), email, name: claim(["name", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"]) || details };
+  } catch {
+    return null;
+  }
+}
+
 function tokenPayload(token) {
   try {
     return jwt.verify(token, jwtSecret(), {
@@ -344,6 +369,59 @@ app.http("auth-verify-code", {
     } catch (error) {
       context.error(error);
       return reply(500, { message: "Unable to verify the code." });
+    }
+  }
+});
+
+
+app.http("auth-swa-session", {
+  methods: ["POST"], authLevel: "anonymous", route: "auth/swa-session",
+  handler: async (request, context) => {
+    try {
+      const principal = swaPrincipal(request);
+      if (!principal) return reply(401, { message: "Google or Microsoft sign-in is required." });
+      const body = await request.json().catch(() => ({}));
+      const role = roleOf(body.role);
+      let user = await read(userId(principal.email), "user");
+      if (!user) {
+        user = {
+          id: userId(principal.email), type: "user", ownerId: userId(principal.email),
+          email: principal.email, normalizedEmail: principal.email, role,
+          name: String(body.name || principal.name || "").trim(),
+          phone: null, location: null, state: STATE,
+          isEmailVerified: true, authProvider: principal.provider,
+          providerUserId: principal.providerUserId, createdAt: iso(), updatedAt: iso()
+        };
+      } else {
+        user.ownerId = user.ownerId || user.id;
+        user.isEmailVerified = true;
+        user.authProvider = user.authProvider || principal.provider;
+        user.providerUserId = user.providerUserId || principal.providerUserId;
+        if (!user.name && principal.name) user.name = principal.name;
+        if (user.role !== "Admin") user.role = role;
+        user.updatedAt = iso();
+      }
+      await upsert(user);
+
+      const replaceOldest = body.replaceOldest === true;
+      const loginSession = await createLoginSession(user, replaceOldest);
+      if (loginSession.requiresConfirmation) {
+        return reply(409, {
+          code: "MAX_SESSIONS",
+          message: "You already have 3 active sessions.",
+          warning: "Logging out the oldest login will sign in this device.",
+          requiresConfirmation: true
+        });
+      }
+      const access = issueAccessToken(user);
+      return reply(200, {
+        token: access.token, tokenType: "Bearer", expiresIn: 15 * 60,
+        refreshToken: loginSession.refresh.token, refreshTokenExpiresAt: loginSession.refresh.expiresAt,
+        user: { id: user.id, email: user.email, role: user.role, name: user.name, location: user.location, state: user.state }
+      });
+    } catch (error) {
+      context.error(error);
+      return reply(500, { message: "Unable to complete social sign-in." });
     }
   }
 });
