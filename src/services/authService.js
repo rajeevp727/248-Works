@@ -1,7 +1,7 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(API_BASE_URL + path, {
     ...options,
     headers: { "Content-Type": "application/json", ...(options.headers || {}) }
   });
@@ -16,7 +16,19 @@ export const authService = {
     catch { return null; }
   },
   saveSession(session) { localStorage.setItem("248works.session", JSON.stringify(session)); },
-  logout() { localStorage.removeItem("248works.session"); },
+  async logout() {
+    const session = this.getSession();
+    try {
+      if (session?.token) {
+        await request("/api/auth/logout", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + session.token }
+        });
+      }
+    } finally {
+      localStorage.removeItem("248works.session");
+    }
+  },
   async requestCode(email) {
     return request("/api/auth/request-code", { method: "POST", body: JSON.stringify({ email }) });
   },
