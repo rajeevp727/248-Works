@@ -6,7 +6,11 @@ async function request(path, options = {}) {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) }
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.message || "Request failed.");
+  if (!response.ok) {
+    const error = new Error(body.message || "Request failed.");
+    error.status = response.status;
+    throw error;
+  }
   return body;
 }
 
@@ -15,7 +19,22 @@ export const authService = {
     try { return JSON.parse(localStorage.getItem("248works.session") || "null"); }
     catch { return null; }
   },
-  saveSession(session) { localStorage.setItem("248works.session", JSON.stringify(session)); },
+  saveSession(session) {
+    localStorage.setItem("248works.session", JSON.stringify(session));
+  },
+  clearSession() {
+    localStorage.removeItem("248works.session");
+  },
+  async refresh() {
+    const session = this.getSession();
+    if (!session?.refreshToken) throw new Error("No refresh token.");
+    const next = await request("/api/auth/refresh", {
+      method: "POST",
+      body: JSON.stringify({ refreshToken: session.refreshToken })
+    });
+    this.saveSession(next);
+    return next;
+  },
   async logout() {
     const session = this.getSession();
     try {
@@ -26,7 +45,7 @@ export const authService = {
         });
       }
     } finally {
-      localStorage.removeItem("248works.session");
+      this.clearSession();
     }
   },
   async requestCode(email) {
