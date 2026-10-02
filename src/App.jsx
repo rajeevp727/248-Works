@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { categories } from "./data/mockData";
 import { dataService } from "./services/dataService";
+import logo from "./assets/248-works-logo.svg";
 
 const brand = "248 Works";
 
 function App() {
+  const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState("home");
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
