@@ -65,4 +65,101 @@ public sealed class CosmosRepository
 
         return response.Resource;
     }
+
+    public async Task<User?> GetUserByEmailAsync(string normalizedEmail, CancellationToken cancellationToken)
+    {
+        var query = new QueryDefinition(
+            "SELECT TOP 1 * FROM c WHERE c.type = @type AND c.normalizedEmail = @email")
+            .WithParameter("@type", "user")
+            .WithParameter("@email", normalizedEmail);
+
+        using var iterator = _container.GetItemQueryIterator<User>(query);
+        while (iterator.HasMoreResults)
+        {
+            var page = await iterator.ReadNextAsync(cancellationToken);
+            return page.FirstOrDefault();
+        }
+
+        return null;
+    }
+
+    public async Task<User> UpsertUserAsync(User user, CancellationToken cancellationToken)
+    {
+        user.updatedAt = DateTime.UtcNow;
+        var response = await _container.UpsertItemAsync(
+            user,
+            new PartitionKey(user.type),
+            cancellationToken: cancellationToken);
+        return response.Resource;
+    }
+
+    public async Task SaveOtpAsync(EmailOtp otp, CancellationToken cancellationToken)
+    {
+        await _container.CreateItemAsync(
+            otp,
+            new PartitionKey(otp.type),
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task<EmailOtp?> GetLatestOtpAsync(string normalizedEmail, CancellationToken cancellationToken)
+    {
+        var query = new QueryDefinition(
+            "SELECT TOP 1 * FROM c WHERE c.type = @type AND c.normalizedEmail = @email AND c.consumed = false ORDER BY c.createdAt DESC")
+            .WithParameter("@type", "emailOtp")
+            .WithParameter("@email", normalizedEmail);
+
+        using var iterator = _container.GetItemQueryIterator<EmailOtp>(query);
+        while (iterator.HasMoreResults)
+        {
+            var page = await iterator.ReadNextAsync(cancellationToken);
+            return page.FirstOrDefault();
+        }
+
+        return null;
+    }
+
+    public async Task ConsumeOtpAsync(EmailOtp otp, CancellationToken cancellationToken)
+    {
+        otp.consumed = true;
+        await _container.ReplaceItemAsync(
+            otp,
+            otp.id,
+            new PartitionKey(otp.type),
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task SaveSessionAsync(AuthSession session, CancellationToken cancellationToken)
+    {
+        await _container.CreateItemAsync(
+            session,
+            new PartitionKey(session.type),
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task<AuthSession?> GetSessionByTokenHashAsync(string tokenHash, CancellationToken cancellationToken)
+    {
+        var query = new QueryDefinition(
+            "SELECT TOP 1 * FROM c WHERE c.type = @type AND c.tokenHash = @hash AND c.revoked = false")
+            .WithParameter("@type", "authSession")
+            .WithParameter("@hash", tokenHash);
+
+        using var iterator = _container.GetItemQueryIterator<AuthSession>(query);
+        while (iterator.HasMoreResults)
+        {
+            var page = await iterator.ReadNextAsync(cancellationToken);
+            return page.FirstOrDefault();
+        }
+
+        return null;
+    }
+
+    public async Task RevokeSessionAsync(AuthSession session, CancellationToken cancellationToken)
+    {
+        session.revoked = true;
+        await _container.ReplaceItemAsync(
+            session,
+            session.id,
+            new PartitionKey(session.type),
+            cancellationToken: cancellationToken);
+    }
 }
