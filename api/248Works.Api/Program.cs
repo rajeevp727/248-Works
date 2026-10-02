@@ -19,6 +19,7 @@ builder.Services.AddSingleton(sp =>
 
 builder.Services.AddHttpClient<TriSendEmailClient>();
 builder.Services.AddSingleton<CosmosRepository>();
+builder.Services.AddScoped<AuthContext>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
