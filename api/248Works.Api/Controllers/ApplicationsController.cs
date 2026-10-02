@@ -9,8 +9,9 @@ namespace _248Works.Api.Controllers;
 public sealed class ApplicationsController : ControllerBase
 {
     private readonly CosmosRepository _repository;
+    private readonly AuthContext _auth;
 
-    public ApplicationsController(CosmosRepository repository)
+    public ApplicationsController(CosmosRepository repository, AuthContext auth)
     {
         _repository = repository;
     }
