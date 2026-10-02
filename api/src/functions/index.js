@@ -55,6 +55,39 @@ async function remove(id, type) {
   catch (e) { if (e.code !== 404 && e.statusCode !== 404) throw e; }
 }
 
+/*
+ * Row-level security (RLS) boundary.
+ *
+ * Cosmos DB does not provide PostgreSQL-style RLS policies when the API uses
+ * a shared Cosmos connection string. Therefore the API is the enforcement
+ * boundary: every protected row carries ownerId and every protected query
+ * includes the authenticated user's id. Never expose a generic "read by id"
+ * operation to the browser.
+ */
+const ownerOf = (row) => row?.ownerId || row?.userId || row?.candidateId || row?.employerId || null;
+
+function canReadRow(user, row) {
+  if (!user || !row) return false;
+  if (user.role === "Admin") return true;
+  return ownerOf(row) === user.id;
+}
+
+function canWriteRow(user, row) {
+  return canReadRow(user, row);
+}
+
+async function readOwned(id, type, user) {
+  const row = await read(id, type);
+  return canReadRow(user, row) ? row : null;
+}
+
+async function queryOwned(sql, parameters, user) {
+  if (!user) return [];
+  const rows = await query(sql, parameters);
+  return rows.filter((row) => canReadRow(user, row));
+}
+
+
 async function enforceRateLimit(scope, key, limit, windowMs) {
   const now = Date.now();
   const id = rateLimitId(scope, key);
