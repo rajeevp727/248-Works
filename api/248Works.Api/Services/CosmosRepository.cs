@@ -83,6 +83,22 @@ public sealed class CosmosRepository
         return null;
     }
 
+    public async Task<User?> GetUserByIdAsync(string userId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _container.ReadItemAsync<User>(
+                userId,
+                new PartitionKey("user"),
+                cancellationToken: cancellationToken);
+            return response.Resource;
+        }
+        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
     public async Task<User> UpsertUserAsync(User user, CancellationToken cancellationToken)
     {
         user.updatedAt = DateTime.UtcNow;
