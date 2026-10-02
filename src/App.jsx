@@ -20,6 +20,7 @@ function App() {
   const [session, setSession] = useState(() => authService.getSession());
   const [authOpen, setAuthOpen] = useState(false);
   const [authPurpose, setAuthPurpose] = useState("JobSeeker");
+  const [socialPending, setSocialPending] = useState(false);
   const [form, setForm] = useState({
     title: "",
     company: "",
@@ -44,6 +45,34 @@ function App() {
       .then(setApplications)
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const pending = authService.getPendingSocialLogin();
+    if (!pending.provider) return undefined;
+
+    authService.exchangeSwaSession(pending.role)
+      .then((nextSession) => {
+        if (!active) return;
+        setSession(nextSession);
+        setSocialPending(false);
+        showToast("Signed in successfully. Welcome to 248 Works.");
+      })
+      .catch((error) => {
+        if (!active) return;
+        if (error.status === 409 && error.code === "MAX_SESSIONS") {
+          setAuthPurpose(pending.role);
+          setSocialPending(true);
+          setAuthOpen(true);
+        } else {
+          authService.clearPendingSocialLogin();
+          showToast(error.message || "Social sign-in could not be completed.");
+        }
+      });
+    return () => { active = false; };
+  }, []);
+
+
 
   const showToast = (message) => {
     setToast(message);
@@ -310,12 +339,14 @@ function App() {
       {authOpen && (
         <AuthModal
           role={authPurpose}
+          socialPending={socialPending}
           onClose={() => setAuthOpen(false)}
           onAuthenticated={(nextSession) => {
             authService.saveSession(nextSession);
             setSession(nextSession);
             setAuthOpen(false);
-            showToast("Email verified. Welcome to 248 Works.");
+            setSocialPending(false);
+            showToast("Signed in successfully. Welcome to 248 Works.");
           }}
         />
       )}
