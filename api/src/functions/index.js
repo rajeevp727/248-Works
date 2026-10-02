@@ -98,6 +98,17 @@ function issueAccessToken(user) {
   };
 }
 const refreshHash = (token) => sha(token, process.env.REFRESH_TOKEN_PEPPER || process.env.OTP_PEPPER || "248works-refresh");
+async function activeSessions(userId) {
+  return query(
+    "SELECT * FROM c WHERE c.type=@type AND c.userId=@userId AND c.revoked=false ORDER BY c.createdAt ASC",
+    [{ name: "@type", value: "refreshToken" }, { name: "@userId", value: userId }]
+  );
+}
+async function revokeSession(session) {
+  session.revoked = true;
+  session.revokedAt = iso();
+  await upsert(session);
+}
 async function createRefreshToken(user) {
   const token = crypto.randomBytes(64).toString("base64url");
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
@@ -111,6 +122,14 @@ async function createRefreshToken(user) {
     revoked: false
   });
   return { token, expiresAt };
+}
+async function createLoginSession(user, replaceOldest = false) {
+  const sessions = await activeSessions(user.id);
+  if (sessions.length >= 3 && !replaceOldest) {
+    return { requiresConfirmation: true, oldest: sessions[0] };
+  }
+  if (sessions.length >= 3) await revokeSession(sessions[0]);
+  return { requiresConfirmation: false, refresh: await createRefreshToken(user) };
 }
 async function rotateRefreshToken(token) {
   const hash = refreshHash(token);
@@ -269,14 +288,23 @@ app.http("auth-verify-code", {
       }
       await upsert(user);
 
+      const replaceOldest = body.replaceOldest === true;
+      const loginSession = await createLoginSession(user, replaceOldest);
+      if (loginSession.requiresConfirmation) {
+        return reply(409, {
+          code: "MAX_SESSIONS",
+          message: "You already have 3 active sessions.",
+          warning: "Logging out the oldest login will sign in this device.",
+          requiresConfirmation: true
+        });
+      }
       const access = issueAccessToken(user);
-      const refresh = await createRefreshToken(user);
       return reply(200, {
         token: access.token,
         tokenType: "Bearer",
         expiresIn: 15 * 60,
-        refreshToken: refresh.token,
-        refreshTokenExpiresAt: refresh.expiresAt,
+        refreshToken: loginSession.refresh.token,
+        refreshTokenExpiresAt: loginSession.refresh.expiresAt,
         user: { id: user.id, email: user.email, role: user.role, name: user.name, location: user.location, state: user.state }
       });
     } catch (error) {
