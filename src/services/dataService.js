@@ -4,14 +4,28 @@ import { authService } from "./authService";
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const USE_API = import.meta.env.VITE_USE_MOCK_API !== "true";
 
-async function apiRequest(path, options = {}) {
+async function apiRequest(path, options = {}, canRefresh = true) {
   const session = authService.getSession();
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (session?.token) headers.Authorization = "Bearer " + session.token;
 
   const response = await fetch(API_BASE_URL + path, { ...options, headers });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.message || "Request failed.");
+
+  if (response.status === 401 && canRefresh && session?.refreshToken) {
+    try {
+      await authService.refresh();
+      return apiRequest(path, options, false);
+    } catch {
+      authService.clearSession();
+    }
+  }
+
+  if (!response.ok) {
+    const error = new Error(body.message || "Request failed.");
+    error.status = response.status;
+    throw error;
+  }
   return body;
 }
 
