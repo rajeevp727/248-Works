@@ -7,6 +7,7 @@ export default function AuthModal({ role, onClose, onAuthenticated }) {
   const [step, setStep] = useState("email");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [sessionWarning, setSessionWarning] = useState(false);
 
   const requestCode = async (event) => {
     event.preventDefault();
@@ -17,7 +18,12 @@ export default function AuthModal({ role, onClose, onAuthenticated }) {
       setStep("code");
       setMessage("Verification code sent to your email. It expires in 10 minutes.");
     } catch (error) {
-      setMessage(error.message);
+      if (error.status === 409 && error.code === "MAX_SESSIONS") {
+        setSessionWarning(true);
+        setMessage("You already have 3 active sessions.");
+      } else {
+        setMessage(error.message);
+      }
     } finally {
       setBusy(false);
     }
@@ -37,6 +43,19 @@ export default function AuthModal({ role, onClose, onAuthenticated }) {
     }
   };
 
+  const confirmReplaceOldest = async () => {
+    setBusy(true);
+    setMessage("");
+    try {
+      const result = await authService.verifyCode({ email, code, role, replaceOldest: true });
+      onAuthenticated(result);
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal auth-modal" onClick={(event) => event.stopPropagation()}>
@@ -44,7 +63,23 @@ export default function AuthModal({ role, onClose, onAuthenticated }) {
         <div className="eyebrow">248 WORKS ACCOUNT</div>
         <h2>{role === "Employer" ? "Employer sign in" : "Job seeker sign in"}</h2>
         <p className="muted">We'll send a one-time verification code to your email using TriSend.</p>
-        {step === "email" ? (
+        {sessionWarning ? (
+          <div className="session-warning">
+            <h3>3 active sessions reached</h3>
+            <p>Logging out the oldest login and signing in on this device will close your oldest active session.</p>
+            <div className="hero-actions">
+              <button className="primary full" disabled={busy} onClick={confirmReplaceOldest}>
+                {busy ? "Updating sessions…" : "Confirm & log out oldest"}
+              </button>
+              <button className="secondary full" disabled={busy} onClick={() => {
+                setSessionWarning(false);
+                setMessage("Login cancelled. Your existing sessions are unchanged.");
+              }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : step === "email" ? (
           <form onSubmit={requestCode}>
             <label>Email address
               <input required type="email" autoComplete="email" value={email}
