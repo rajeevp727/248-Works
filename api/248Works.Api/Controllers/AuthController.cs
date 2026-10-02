@@ -74,6 +74,7 @@ public sealed class AuthController : ControllerBase
                 Convert.FromHexString(HashCode(email, code))))
         {
             otp.attempts++;
+            await _repository.UpdateOtpAsync(otp, cancellationToken);
             return Unauthorized(new { message = "The code is invalid or expired." });
         }
 
