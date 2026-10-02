@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { authService } from "../services/authService";
 
-export default function AuthModal({ role, onClose, onAuthenticated }) {
+export default function AuthModal({ role, onClose, onAuthenticated, socialPending = false }) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState("email");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const [sessionWarning, setSessionWarning] = useState(false);
+  const [sessionWarning, setSessionWarning] = useState(socialPending);
 
   const requestCode = async (event) => {
     event.preventDefault();
@@ -47,13 +47,19 @@ export default function AuthModal({ role, onClose, onAuthenticated }) {
     setBusy(true);
     setMessage("");
     try {
-      const result = await authService.verifyCode({ email, code, role, replaceOldest: true });
+      const result = socialPending
+        ? await authService.exchangeSwaSession(role, true)
+        : await authService.verifyCode({ email, code, role, replaceOldest: true });
       onAuthenticated(result);
     } catch (error) {
       setMessage(error.message);
     } finally {
       setBusy(false);
     }
+  };
+
+  const socialLogin = (provider) => {
+    authService.startSocialLogin(provider, role);
   };
 
   return (
@@ -73,13 +79,16 @@ export default function AuthModal({ role, onClose, onAuthenticated }) {
               </button>
               <button className="secondary full" disabled={busy} onClick={() => {
                 setSessionWarning(false);
-                setMessage("Login cancelled. Your existing sessions are unchanged.");
+                authService.clearPendingSocialLogin();
+                if (socialPending) window.location.assign("/.auth/logout?post_logout_redirect_uri=" + encodeURIComponent(window.location.origin + "/"));
+                else setMessage("Login cancelled. Your existing sessions are unchanged.");
               }}>
                 Cancel
               </button>
             </div>
           </div>
         ) : step === "email" ? (
+
           <form onSubmit={requestCode}>
             <label>Email address
               <input required type="email" autoComplete="email" value={email}
@@ -88,6 +97,15 @@ export default function AuthModal({ role, onClose, onAuthenticated }) {
             <button className="primary full" disabled={busy} type="submit">
               {busy ? "Sending…" : "Send verification code →"}
             </button>
+            <div className="social-auth">
+            <div className="social-divider"><span>or continue with</span></div>
+            <button className="secondary full social-button" type="button" onClick={() => socialLogin("google")}>
+              Continue with Google
+            </button>
+            <button className="secondary full social-button" type="button" onClick={() => socialLogin("aad")}>
+              Continue with Microsoft
+            </button>
+          </div>
           </form>
         ) : (
           <form onSubmit={verifyCode}>
