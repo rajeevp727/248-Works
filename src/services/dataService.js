@@ -2,13 +2,14 @@ import { jobs, initialApplications, TELANGANA_STATE, TELANGANA_LOCATIONS } from 
 import { authService } from "./authService";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+const USE_API = import.meta.env.VITE_USE_MOCK_API !== "true";
 
 async function apiRequest(path, options = {}) {
   const session = authService.getSession();
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
-  if (session?.token) headers.Authorization = `Bearer ${session.token}`;
+  if (session?.token) headers.Authorization = "Bearer " + session.token;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  const response = await fetch(API_BASE_URL + path, { ...options, headers });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.message || "Request failed.");
   return body;
@@ -24,7 +25,7 @@ const assertTelanganaLocation = (location) => {
 
 export const dataService = {
   async getJobs(filters = {}) {
-    if (API_BASE_URL) {
+    if (USE_API) {
       const data = await apiRequest("/api/jobs");
       const query = (filters.query || "").trim().toLowerCase();
       return data.filter((job) => {
@@ -48,25 +49,28 @@ export const dataService = {
     if (!session?.token || session.user?.role !== "JobSeeker")
       throw new Error("Please sign in as a job seeker first.");
 
-    if (API_BASE_URL) {
-      const result = await apiRequest("/api/applications", {
+    if (USE_API) {
+      return apiRequest("/api/applications", {
         method: "POST",
-        body: JSON.stringify({ jobId, candidateId: session.user.id, candidateName: session.user.name || "" })
+        body: JSON.stringify({ jobId })
       });
-      return result;
     }
 
     const job = jobs.find((item) => item.id === jobId);
     if (!job || job.state !== TELANGANA_STATE) throw new Error("Job not found.");
     const existing = applications.find(item => item.jobId === jobId);
     if (existing) return existing;
-    const application = { id: `app-${Date.now()}`, jobId, candidate: session.user.name || session.user.email, status: "Applied", appliedOn: "Just now" };
+    const application = { id: "app-" + Date.now(), jobId, candidate: session.user.name || session.user.email, status: "Applied", appliedOn: "Just now" };
     applications.push(application);
     return application;
   },
 
   async getApplications() {
-    if (API_BASE_URL) return [];
+    if (USE_API) {
+      const session = authService.getSession();
+      if (!session?.token) return [];
+      return apiRequest("/api/applications");
+    }
     return applications.map(app => ({ ...app, job: jobs.find(job => job.id === app.jobId) })).filter(app => app.job?.state === TELANGANA_STATE);
   },
 
@@ -76,14 +80,14 @@ export const dataService = {
     if (!session?.token || session.user?.role !== "Employer")
       throw new Error("Please sign in as an employer first.");
 
-    if (API_BASE_URL) {
+    if (USE_API) {
       return apiRequest("/api/jobs", {
         method: "POST",
-        body: JSON.stringify({ ...job, state: TELANGANA_STATE })
+        body: JSON.stringify({ ...job, jobType: job.type, state: TELANGANA_STATE })
       });
     }
 
-    const newJob = { ...job, state: TELANGANA_STATE, id: `job-${Date.now()}`, posted: "Just now", vacancies: Number(job.vacancies || 1) };
+    const newJob = { ...job, state: TELANGANA_STATE, id: "job-" + Date.now(), posted: "Just now", vacancies: Number(job.vacancies || 1) };
     jobs.unshift(newJob);
     return newJob;
   }
