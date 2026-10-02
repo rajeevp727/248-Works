@@ -14,6 +14,7 @@ public sealed class ApplicationsController : ControllerBase
     public ApplicationsController(CosmosRepository repository, AuthContext auth)
     {
         _repository = repository;
+        _auth = auth;
     }
 
     [HttpPost]
@@ -21,9 +22,15 @@ public sealed class ApplicationsController : ControllerBase
         [FromBody] Application application,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(application.jobId) ||
-            string.IsNullOrWhiteSpace(application.candidateId))
-            return BadRequest("Job and candidate are required.");
+        var user = await _auth.GetUserAsync(Request, cancellationToken);
+        if (user is null) return Unauthorized(new { message = "Please sign in as a job seeker." });
+        if (!string.Equals(user.role, "JobSeeker", StringComparison.OrdinalIgnoreCase)) return Forbid();
+
+        if (string.IsNullOrWhiteSpace(application.jobId))
+            return BadRequest("Job is required.");
+
+        application.candidateId = user.id;
+        application.candidateName = string.IsNullOrWhiteSpace(user.name) ? user.email : user.name;
 
         return Ok(await _repository.CreateApplicationAsync(application, cancellationToken));
     }
