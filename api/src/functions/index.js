@@ -369,12 +369,39 @@ app.http("auth-logout", {
   }
 });
 
-const mapJob = (job) => ({
-  ...job,
-  type: job.jobType || job.type || "Full-time",
-  jobType: job.jobType || job.type || "Full-time",
-  posted: job.posted || "Recently"
-});
+function assertRowAccess(user, row, ownerField) {
+  if (!user) return false;
+  if (user.role === "Admin") return true;
+  return row && row[ownerField] === user.id;
+}
+function publicJob(job) {
+  return {
+    id: job.id,
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    state: job.state,
+    salary: job.salary,
+    category: job.category,
+    type: job.jobType || job.type || "Full-time",
+    jobType: job.jobType || job.type || "Full-time",
+    description: job.description,
+    vacancies: job.vacancies,
+    skills: Array.isArray(job.skills) ? job.skills : [],
+    posted: job.posted || "Recently",
+    createdAt: job.createdAt
+  };
+}
+const mapJob = publicJob;
+function publicApplication(application, job) {
+  return {
+    id: application.id,
+    jobId: application.jobId,
+    status: application.status,
+    appliedOn: application.appliedAt ? new Date(application.appliedAt).toLocaleDateString("en-IN") : "Recently",
+    job: job ? publicJob(job) : null
+  };
+}
 
 app.http("jobs", {
   methods: ["GET", "POST"], authLevel: "anonymous", route: "jobs",
@@ -432,10 +459,7 @@ app.http("applications", {
         const result = [];
         for (const row of rows) {
           const job = await read(row.jobId, "job");
-          result.push({
-            ...row, appliedOn: row.appliedAt ? new Date(row.appliedAt).toLocaleDateString("en-IN") : "Recently",
-            job: job ? mapJob(job) : null
-          });
+          result.push(publicApplication(row, job));
         }
         return reply(200, result);
       }
@@ -454,7 +478,7 @@ app.http("applications", {
           { name: "@candidateId", value: user.id }
         ]
       ))[0];
-      if (existing) return reply(200, { ...existing, appliedOn: "Already applied", job: mapJob(job) });
+      if (existing) return reply(200, publicApplication(existing, job));
 
       const application = {
         id: "application:" + crypto.randomUUID(), type: "application",
@@ -462,7 +486,7 @@ app.http("applications", {
         status: "Applied", appliedAt: iso()
       };
       await upsert(application);
-      return reply(201, { ...application, appliedOn: "Just now", job: mapJob(job) });
+      return reply(201, publicApplication(application, job));
     } catch (error) {
       context.error(error);
       return reply(500, { message: "Unable to process the application." });
