@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { categories, TELANGANA_LOCATIONS, TELANGANA_STATE } from "./data/mockData";
 import { dataService } from "./services/dataService";
+import { authService } from "./services/authService";
 import logo from "./assets/248-works-logo.png";
 
 const brand = "248 Works";
@@ -15,6 +16,9 @@ function App() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [toast, setToast] = useState("");
   const [providerJobs, setProviderJobs] = useState([]);
+  const [session, setSession] = useState(() => authService.getSession());
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authPurpose, setAuthPurpose] = useState("JobSeeker");
   const [form, setForm] = useState({
     title: "",
     company: "",
@@ -45,7 +49,16 @@ function App() {
     window.setTimeout(() => setToast(""), 2800);
   };
 
+  const requireAuth = (purpose) => {
+    if (session) return true;
+    setAuthPurpose(purpose);
+    setAuthOpen(true);
+    return false;
+  };
+
   const apply = async (jobId) => {
+    if (!requireAuth("JobSeeker")) return;
+
     await dataService.apply(jobId);
     setApplications(await dataService.getApplications());
     setSelectedJob(null);
@@ -53,6 +66,8 @@ function App() {
   };
 
   const submitJob = async (event) => {
+    if (!requireAuth("Employer")) return;
+
     event.preventDefault();
 
     if (!TELANGANA_LOCATIONS.includes(form.location)) {
@@ -290,6 +305,19 @@ function App() {
         <span>Telangana-first local hiring platform</span>
         <span>Terms · Privacy · Grievance</span>
       </footer>
+
+      {authOpen && (
+        <AuthModal
+          role={authPurpose}
+          onClose={() => setAuthOpen(false)}
+          onAuthenticated={(nextSession) => {
+            authService.saveSession(nextSession);
+            setSession(nextSession);
+            setAuthOpen(false);
+            showToast("Email verified. Welcome to 248 Works.");
+          }}
+        />
+      )}
 
       {toast && <div className="toast">{toast}</div>}
     </div>
