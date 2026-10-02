@@ -7,3 +7,8 @@
 @media(max-width:560px){.brand-logo{width:120px;height:48px}}
 
 .auth-modal h2{margin-top:8px}.auth-modal label{display:block;font-size:12px;font-weight:800;margin:18px 0;color:#344054}.auth-modal input{display:block;margin-top:7px;border:1px solid #dce2ea;background:#fbfcfe;border-radius:9px;padding:13px;font:inherit;outline:none;width:100%}.auth-modal input:focus{border-color:#91b54d}.auth-modal button:disabled{opacity:.65;cursor:not-allowed}.auth-back{margin-top:10px;width:100%}.auth-message{margin-top:15px;padding:11px 13px;border-radius:9px;background:#f1f5e9;color:#52652d;font-size:12px;line-height:1.5}
+
+.social-auth { margin-top: 1rem; }
+.social-divider { display:flex; align-items:center; gap:.75rem; margin:.85rem 0; color:var(--muted,#777); font-size:.8rem; }
+.social-divider::before,.social-divider::after { content:""; flex:1; height:1px; background:currentColor; opacity:.25; }
+.social-button { margin-top:.55rem; }
