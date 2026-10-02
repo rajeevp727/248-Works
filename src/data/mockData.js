@@ -1,9 +1,36 @@
+export const TELANGANA_STATE = "Telangana";
+
+export const TELANGANA_LOCATIONS = [
+  "Hyderabad",
+  "Nizampet",
+  "Bachupally",
+  "Kukatpally",
+  "Pragathi Nagar",
+  "Miyapur",
+  "Gachibowli",
+  "Madhapur",
+  "Secunderabad",
+  "Medchal",
+  "Malkajgiri",
+  "LB Nagar",
+  "Uppal",
+  "Kompally",
+  "Shamshabad",
+  "Sangareddy",
+  "Warangal",
+  "Karimnagar",
+  "Nizamabad",
+  "Khammam",
+  "Nalgonda"
+];
+
 export const jobs = [
   {
     id: "job-001",
     title: "Retail Sales Executive",
     company: "GreenMart Retail",
     location: "Nizampet",
+    state: TELANGANA_STATE,
     salary: "₹14,000–₹18,000",
     category: "Sales",
     type: "Full-time",
@@ -17,6 +44,7 @@ export const jobs = [
     title: "Cashier / POS Operator",
     company: "Daily Needs Supermarket",
     location: "Bachupally",
+    state: TELANGANA_STATE,
     salary: "₹13,000–₹17,000",
     category: "Cashier",
     type: "Full-time",
@@ -30,6 +58,7 @@ export const jobs = [
     title: "Store Assistant",
     company: "Urban Home Store",
     location: "Kukatpally",
+    state: TELANGANA_STATE,
     salary: "₹12,000–₹16,000",
     category: "Store Assistant",
     type: "Full-time",
@@ -43,6 +72,7 @@ export const jobs = [
     title: "Delivery & Shop Helper",
     company: "Fresh Basket",
     location: "Pragathi Nagar",
+    state: TELANGANA_STATE,
     salary: "₹11,000–₹15,000",
     category: "Helper",
     type: "Full-time",
