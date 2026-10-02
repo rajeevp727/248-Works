@@ -6,6 +6,8 @@ using _248Works.Api.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<CosmosOptions>(builder.Configuration.GetSection("Cosmos"));
+builder.Services.Configure<TriSendOptions>(builder.Configuration.GetSection("TriSend"));
+
 builder.Services.AddSingleton(sp =>
 {
     var options = sp.GetRequiredService<IOptions<CosmosOptions>>().Value;
@@ -14,6 +16,8 @@ builder.Services.AddSingleton(sp =>
         throw new InvalidOperationException("Cosmos:ConnectionString is not configured.");
     return new CosmosClient(connectionString);
 });
+
+builder.Services.AddHttpClient<TriSendEmailClient>();
 builder.Services.AddSingleton<CosmosRepository>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
