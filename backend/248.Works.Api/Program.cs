@@ -22,8 +22,17 @@ builder.Services.AddSingleton(sp =>
 
 builder.Services.AddSingleton<CosmosDataStore>();
 builder.Services.AddSingleton<MigrationRunner>();
+builder.Services.Add248WorksMigrations();
 
 var app = builder.Build();
+
+if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
+{
+    using var scope = app.Services.CreateScope();
+    var runner = scope.ServiceProvider.GetRequiredService<MigrationRunner>();
+    await runner.RunAsync();
+    return;
+}
 
 if (app.Environment.IsDevelopment())
 {
