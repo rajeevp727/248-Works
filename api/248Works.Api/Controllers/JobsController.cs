@@ -23,6 +23,7 @@ public sealed class JobsController : ControllerBase
     public JobsController(CosmosRepository repository, AuthContext auth)
     {
         _repository = repository;
+        _auth = auth;
     }
 
     [HttpGet]
@@ -36,6 +37,10 @@ public sealed class JobsController : ControllerBase
         [FromBody] Job job,
         CancellationToken cancellationToken)
     {
+        var user = await _auth.GetUserAsync(Request, cancellationToken);
+        if (user is null) return Unauthorized(new { message = "Please sign in." });
+        if (!string.Equals(user.role, "Employer", StringComparison.OrdinalIgnoreCase) && !string.Equals(user.role, "Admin", StringComparison.OrdinalIgnoreCase)) return Forbid();
+
         if (string.IsNullOrWhiteSpace(job.title) || string.IsNullOrWhiteSpace(job.company))
             return BadRequest("Job title and company are required.");
 
