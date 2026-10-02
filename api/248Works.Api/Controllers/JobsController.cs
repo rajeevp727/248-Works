@@ -18,8 +18,9 @@ public sealed class JobsController : ControllerBase
     };
 
     private readonly CosmosRepository _repository;
+    private readonly AuthContext _auth;
 
-    public JobsController(CosmosRepository repository)
+    public JobsController(CosmosRepository repository, AuthContext auth)
     {
         _repository = repository;
     }
