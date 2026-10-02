@@ -7,6 +7,7 @@ namespace _248Works.Api.Services;
 
 public sealed class CosmosRepository
 {
+    private const string LaunchState = "Telangana";
     private readonly Container _container;
 
     public CosmosRepository(CosmosClient client, IOptions<CosmosOptions> options)
@@ -18,8 +19,9 @@ public sealed class CosmosRepository
     public async Task<IReadOnlyList<Job>> GetJobsAsync(CancellationToken cancellationToken)
     {
         var query = new QueryDefinition(
-            "SELECT * FROM c WHERE c.type = @type AND c.isActive = true ORDER BY c.createdAt DESC")
-            .WithParameter("@type", "job");
+            "SELECT * FROM c WHERE c.type = @type AND c.state = @state AND c.isActive = true ORDER BY c.createdAt DESC")
+            .WithParameter("@type", "job")
+            .WithParameter("@state", LaunchState);
 
         var iterator = _container.GetItemQueryIterator<Job>(query);
         var results = new List<Job>();
@@ -36,6 +38,7 @@ public sealed class CosmosRepository
     public async Task<Job> CreateJobAsync(Job job, CancellationToken cancellationToken)
     {
         job.type = "job";
+        job.state = LaunchState;
         job.id = Guid.NewGuid().ToString("N");
         job.createdAt = DateTime.UtcNow;
 
