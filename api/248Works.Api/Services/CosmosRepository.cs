@@ -134,14 +134,15 @@ public sealed class CosmosRepository
         return null;
     }
 
+    public async Task UpdateOtpAsync(EmailOtp otp, CancellationToken cancellationToken)
+    {
+        await _container.ReplaceItemAsync(otp, otp.id, new PartitionKey(otp.type), cancellationToken: cancellationToken);
+    }
+
     public async Task ConsumeOtpAsync(EmailOtp otp, CancellationToken cancellationToken)
     {
         otp.consumed = true;
-        await _container.ReplaceItemAsync(
-            otp,
-            otp.id,
-            new PartitionKey(otp.type),
-            cancellationToken: cancellationToken);
+        await UpdateOtpAsync(otp, cancellationToken);
     }
 
     public async Task SaveSessionAsync(AuthSession session, CancellationToken cancellationToken)
