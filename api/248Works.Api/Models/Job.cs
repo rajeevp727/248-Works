@@ -7,6 +7,7 @@ public sealed class Job
     public string title { get; set; } = "";
     public string company { get; set; } = "";
     public string location { get; set; } = "";
+    public string state { get; set; } = "Telangana";
     public string salary { get; set; } = "";
     public string category { get; set; } = "";
     public string jobType { get; set; } = "Full-time";
