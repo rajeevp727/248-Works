@@ -1,9 +1,13 @@
 const { app } = require("@azure/functions");
 const { CosmosClient } = require("@azure/cosmos");
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 
 const STATE = "Telangana";
 const TRISEND_BASE_URL = (process.env.TRISEND_BASE_URL || "https://trisend-wxyu.onrender.com").replace(/\/$/, "");
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_ISSUER = process.env.JWT_ISSUER || "248works.in";
+const JWT_AUDIENCE = process.env.JWT_AUDIENCE || "248WorksAPI";
 let container;
 
 function db() {
@@ -11,21 +15,29 @@ function db() {
     const cs = process.env.COSMOS_CONNECTION_STRING;
     if (!cs) throw new Error("COSMOS_CONNECTION_STRING is not configured.");
     const client = new CosmosClient(cs);
-    container = client
-      .database(process.env.COSMOS_DATABASE_NAME || "248WorksDB")
+    container = client.database(process.env.COSMOS_DATABASE_NAME || "248WorksDB")
       .container(process.env.COSMOS_CONTAINER_NAME || "248Data");
   }
   return container;
 }
-const reply = (status, body) => ({ status, jsonBody: body, headers: { "Content-Type": "application/json" } });
+
+const reply = (status, body, extraHeaders = {}) => ({
+  status,
+  jsonBody: body,
+  headers: { "Content-Type": "application/json", ...extraHeaders }
+});
 const emailOf = (v) => String(v || "").trim().toLowerCase();
 const validEmail = (e) => e.length >= 5 && e.length <= 320 && e.includes("@") && e.lastIndexOf(".") > e.indexOf("@") + 1;
 const roleOf = (v) => String(v || "").toLowerCase() === "employer" ? "Employer" : "JobSeeker";
 const iso = () => new Date().toISOString();
 const sha = (v, salt) => crypto.createHash("sha256").update(salt + "|" + v).digest("hex");
 const otpHash = (email, code) => sha(email + "|" + code, process.env.OTP_PEPPER || "248works-otp");
-const sessionHash = (token) => sha(token, process.env.SESSION_PEPPER || "248works-session");
 const userId = (email) => "user:" + Buffer.from(email).toString("base64url");
+const clientIp = (request) => {
+  const forwarded = request.headers.get("x-forwarded-for") || request.headers.get("x-client-ip") || "";
+  return (forwarded.split(",")[0] || "unknown").trim().slice(0, 128);
+};
+const rateLimitId = (scope, key) => "rate:" + sha(scope + "|" + key, process.env.RATE_LIMIT_PEPPER || process.env.OTP_PEPPER || "248works-rate");
 
 async function query(sql, parameters) {
   const { resources } = await db().items.query({ query: sql, parameters: parameters || [] }).fetchAll();
@@ -40,14 +52,72 @@ async function remove(id, type) {
   try { await db().item(id, type).delete(); }
   catch (e) { if (e.code !== 404 && e.statusCode !== 404) throw e; }
 }
+
+async function enforceRateLimit(scope, key, limit, windowMs) {
+  const now = Date.now();
+  const id = rateLimitId(scope, key);
+  const existing = await read(id, "rateLimit");
+  if (!existing || new Date(existing.windowEndsAt).getTime() <= now) {
+    await upsert({
+      id, type: "rateLimit", scope,
+      count: 1,
+      windowStartedAt: new Date(now).toISOString(),
+      windowEndsAt: new Date(now + windowMs).toISOString()
+    });
+    return { allowed: true, retryAfterSeconds: Math.ceil(windowMs / 1000) };
+  }
+  if (existing.count >= limit) {
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(1, Math.ceil((new Date(existing.windowEndsAt).getTime() - now) / 1000))
+    };
+  }
+  existing.count += 1;
+  await upsert(existing);
+  return {
+    allowed: true,
+    retryAfterSeconds: Math.max(1, Math.ceil((new Date(existing.windowEndsAt).getTime() - now) / 1000))
+  };
+}
+
+function jwtSecret() {
+  if (!JWT_SECRET || JWT_SECRET.length < 32) throw new Error("JWT_SECRET is not configured with sufficient entropy.");
+  return JWT_SECRET;
+}
+function issueToken(user) {
+  const jti = crypto.randomUUID();
+  return jwt.sign(
+    { sub: user.id, email: user.email, role: user.role, name: user.name || "" },
+    jwtSecret(),
+    { algorithm: "HS256", issuer: JWT_ISSUER, audience: JWT_AUDIENCE, expiresIn: "30d", jwtid: jti }
+  );
+}
 async function currentUser(request) {
   const h = request.headers.get("authorization") || "";
   if (!h.toLowerCase().startsWith("bearer ")) return null;
   const token = h.slice(7).trim();
   if (!token) return null;
-  const session = await read("session:" + sessionHash(token), "authSession");
-  if (!session || session.revoked || new Date(session.expiresAt) <= new Date()) return null;
-  return read(session.userId, "user");
+  try {
+    const payload = jwt.verify(token, jwtSecret(), {
+      algorithms: ["HS256"], issuer: JWT_ISSUER, audience: JWT_AUDIENCE
+    });
+    if (!payload.sub || !payload.jti) return null;
+    const revoked = await read("revokedJwt:" + payload.jti, "revokedJwt");
+    if (revoked) return null;
+    return read(payload.sub, "user");
+  } catch {
+    return null;
+  }
+}
+function tokenPayload(token) {
+  try {
+    return jwt.verify(token, jwtSecret(), {
+      algorithms: ["HS256"], issuer: JWT_ISSUER, audience: JWT_AUDIENCE,
+      ignoreExpiration: true
+    });
+  } catch {
+    return null;
+  }
 }
 async function sendEmail(recipient, subject, body) {
   const key = process.env.TRISEND_API_KEY;
@@ -73,12 +143,21 @@ app.http("auth-request-code", {
       const email = emailOf(body.email);
       if (!validEmail(email)) return reply(400, { message: "Enter a valid email address." });
 
+      const ip = clientIp(request);
+      const emailLimit = await enforceRateLimit("otp-email", email, 3, 15 * 60 * 1000);
+      const ipLimit = await enforceRateLimit("otp-ip", ip, 3, 15 * 60 * 1000);
+      if (!emailLimit.allowed || !ipLimit.allowed) {
+        const retry = Math.max(emailLimit.retryAfterSeconds, ipLimit.retryAfterSeconds);
+        return reply(429, { message: "Too many verification-code requests. Please try again later.", retryAfterSeconds: retry },
+          { "Retry-After": String(retry) });
+      }
+
       const latest = (await query(
         "SELECT TOP 1 * FROM c WHERE c.type=@type AND c.email=@email ORDER BY c.createdAt DESC",
         [{ name: "@type", value: "emailOtp" }, { name: "@email", value: email }]
       ))[0];
       if (latest && new Date(latest.createdAt) > new Date(Date.now() - 60000))
-        return reply(429, { message: "Please wait before requesting another code." });
+        return reply(429, { message: "Please wait before requesting another code." }, { "Retry-After": "60" });
 
       const code = String(crypto.randomInt(100000, 1000000));
       const otp = {
@@ -88,11 +167,8 @@ app.http("auth-request-code", {
       };
       await upsert(otp);
       try {
-        await sendEmail(
-          email,
-          "Your 248 Works verification code",
-          "Your 248 Works verification code is " + code + ". It expires in 10 minutes. If you did not request this code, you can ignore this email."
-        );
+        await sendEmail(email, "Your 248 Works verification code",
+          "Your 248 Works verification code is " + code + ". It expires in 10 minutes. If you did not request this code, you can ignore this email.");
       } catch (error) {
         await remove(otp.id, otp.type);
         context.error(error);
@@ -115,6 +191,14 @@ app.http("auth-verify-code", {
       const code = String(body.code || "").trim();
       if (!validEmail(email) || !/^\d{6}$/.test(code))
         return reply(400, { message: "Email and a 6-digit code are required." });
+
+      const verifyLimit = await enforceRateLimit("otp-verify-email", email, 5, 10 * 60 * 1000);
+      const verifyIpLimit = await enforceRateLimit("otp-verify-ip", clientIp(request), 20, 10 * 60 * 1000);
+      if (!verifyLimit.allowed || !verifyIpLimit.allowed) {
+        const retry = Math.max(verifyLimit.retryAfterSeconds, verifyIpLimit.retryAfterSeconds);
+        return reply(429, { message: "Too many verification attempts. Request a new code later.", retryAfterSeconds: retry },
+          { "Retry-After": String(retry) });
+      }
 
       const otp = (await query(
         "SELECT TOP 1 * FROM c WHERE c.type=@type AND c.email=@email ORDER BY c.createdAt DESC",
@@ -152,14 +236,11 @@ app.http("auth-verify-code", {
       }
       await upsert(user);
 
-      const token = crypto.randomBytes(48).toString("base64url");
-      await upsert({
-        id: "session:" + sessionHash(token), type: "authSession", userId: user.id,
-        tokenHash: sessionHash(token), createdAt: iso(),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), revoked: false
-      });
+      const token = issueToken(user);
       return reply(200, {
         token,
+        tokenType: "Bearer",
+        expiresIn: 30 * 24 * 60 * 60,
         user: { id: user.id, email: user.email, role: user.role, name: user.name, location: user.location, state: user.state }
       });
     } catch (error) {
@@ -176,8 +257,16 @@ app.http("auth-logout", {
       const h = request.headers.get("authorization") || "";
       if (h.toLowerCase().startsWith("bearer ")) {
         const token = h.slice(7).trim();
-        const session = await read("session:" + sessionHash(token), "authSession");
-        if (session) { session.revoked = true; session.revokedAt = iso(); await upsert(session); }
+        const payload = tokenPayload(token);
+        if (payload?.jti && payload?.exp) {
+          await upsert({
+            id: "revokedJwt:" + payload.jti,
+            type: "revokedJwt",
+            jti: payload.jti,
+            expiresAt: new Date(payload.exp * 1000).toISOString(),
+            revokedAt: iso()
+          });
+        }
       }
       return reply(200, { message: "Signed out." });
     } catch (error) {
