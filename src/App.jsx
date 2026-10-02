@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { categories } from "./data/mockData";
 import { dataService } from "./services/dataService";
-import logo from "./assets/248-works-logo.svg";
+import logo from "./assets/248-works-logo.png";
 
 const brand = "248 Works";
 
@@ -35,7 +35,9 @@ function App() {
   }, [query, category]);
 
   useEffect(() => {
-    dataService.getApplications().then(setApplications);
+    dataService.getApplications()
+      .then(setApplications)
+      .finally(() => setLoading(false));
   }, []);
 
   const showToast = (message) => {
@@ -74,11 +76,16 @@ function App() {
 
   return (
     <div className="app-shell">
+      {loading && (
+        <div className="app-loader" role="status" aria-label="Loading 248 Works">
+          <img className="loader-logo" src={logo} alt="248 Works" />
+          <div className="loader-ring" aria-hidden="true"></div>
+          <span>Loading opportunities...</span>
+        </div>
+      )}
       <header className="topbar">
         <button className="brand" onClick={() => setMode("home")} aria-label="248 Works home">
-          <span className="brand-mark">248</span>
-          <span><strong>Works</strong><small>Connecting People, Empowering Businesses</small></span>
-        </button>
+          <img className="brand-logo" src={logo} alt="248 Works" />
         <nav>
           <button className={mode === "seeker" ? "nav-active" : ""} onClick={() => setMode("seeker")}>Find Work</button>
           <button className={mode === "provider" ? "nav-active" : ""} onClick={() => setMode("provider")}>Hire People</button>
