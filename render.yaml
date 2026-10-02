@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: 248-works-api
+    runtime: docker
+    dockerfilePath: ./api/248Works.Api/Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: Cosmos__ConnectionString
+        sync: false
+      - key: Cosmos__DatabaseName
+        value: 248WorksDB
+      - key: Cosmos__ContainerName
+        value: 248Data
+      - key: TriSend__BaseUrl
+        value: https://trisend-wxyu.onrender.com
+      - key: TriSend__ApiKey
+        sync: false
