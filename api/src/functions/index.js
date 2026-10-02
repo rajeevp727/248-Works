@@ -8,6 +8,8 @@ const TRISEND_BASE_URL = (process.env.TRISEND_BASE_URL || "https://trisend-wxyu.
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_ISSUER = process.env.JWT_ISSUER || "248works.in";
 const JWT_AUDIENCE = process.env.JWT_AUDIENCE || "248WorksAPI";
+const ACCESS_TOKEN_TTL = process.env.ACCESS_TOKEN_TTL || "15m";
+const REFRESH_TOKEN_TTL_DAYS = Number(process.env.REFRESH_TOKEN_TTL_DAYS || 30);
 let container;
 
 function db() {
@@ -84,13 +86,44 @@ function jwtSecret() {
   if (!JWT_SECRET || JWT_SECRET.length < 32) throw new Error("JWT_SECRET is not configured with sufficient entropy.");
   return JWT_SECRET;
 }
-function issueToken(user) {
+function issueAccessToken(user) {
   const jti = crypto.randomUUID();
-  return jwt.sign(
-    { sub: user.id, email: user.email, role: user.role, name: user.name || "" },
-    jwtSecret(),
-    { algorithm: "HS256", issuer: JWT_ISSUER, audience: JWT_AUDIENCE, expiresIn: "30d", jwtid: jti }
-  );
+  return {
+    token: jwt.sign(
+      { sub: user.id, email: user.email, role: user.role, name: user.name || "" },
+      jwtSecret(),
+      { algorithm: "HS256", issuer: JWT_ISSUER, audience: JWT_AUDIENCE, expiresIn: ACCESS_TOKEN_TTL, jwtid: jti }
+    ),
+    jti
+  };
+}
+const refreshHash = (token) => sha(token, process.env.REFRESH_TOKEN_PEPPER || process.env.OTP_PEPPER || "248works-refresh");
+async function createRefreshToken(user) {
+  const token = crypto.randomBytes(64).toString("base64url");
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  await upsert({
+    id: "refresh:" + refreshHash(token),
+    type: "refreshToken",
+    userId: user.id,
+    tokenHash: refreshHash(token),
+    createdAt: iso(),
+    expiresAt,
+    revoked: false
+  });
+  return { token, expiresAt };
+}
+async function rotateRefreshToken(token) {
+  const hash = refreshHash(token);
+  const record = await read("refresh:" + hash, "refreshToken");
+  if (!record || record.revoked || new Date(record.expiresAt) <= new Date()) return null;
+  record.revoked = true;
+  record.revokedAt = iso();
+  await upsert(record);
+  const user = await read(record.userId, "user");
+  if (!user) return null;
+  const refresh = await createRefreshToken(user);
+  const access = issueAccessToken(user);
+  return { access, refresh, user };
 }
 async function currentUser(request) {
   const h = request.headers.get("authorization") || "";
@@ -236,16 +269,48 @@ app.http("auth-verify-code", {
       }
       await upsert(user);
 
-      const token = issueToken(user);
+      const access = issueAccessToken(user);
+      const refresh = await createRefreshToken(user);
       return reply(200, {
-        token,
+        token: access.token,
         tokenType: "Bearer",
-        expiresIn: 30 * 24 * 60 * 60,
+        expiresIn: 15 * 60,
+        refreshToken: refresh.token,
+        refreshTokenExpiresAt: refresh.expiresAt,
         user: { id: user.id, email: user.email, role: user.role, name: user.name, location: user.location, state: user.state }
       });
     } catch (error) {
       context.error(error);
       return reply(500, { message: "Unable to verify the code." });
+    }
+  }
+});
+
+app.http("auth-refresh", {
+  methods: ["POST"], authLevel: "anonymous", route: "auth/refresh",
+  handler: async (request, context) => {
+    try {
+      const body = await request.json().catch(() => ({}));
+      const refreshToken = String(body.refreshToken || "").trim();
+      if (!refreshToken) return reply(401, { message: "Refresh token is required." });
+
+      const result = await rotateRefreshToken(refreshToken);
+      if (!result) return reply(401, { message: "Refresh token is invalid or expired. Please sign in again." });
+
+      return reply(200, {
+        token: result.access.token,
+        tokenType: "Bearer",
+        expiresIn: 15 * 60,
+        refreshToken: result.refresh.token,
+        refreshTokenExpiresAt: result.refresh.expiresAt,
+        user: {
+          id: result.user.id, email: result.user.email, role: result.user.role,
+          name: result.user.name, location: result.user.location, state: result.user.state
+        }
+      });
+    } catch (error) {
+      context.error(error);
+      return reply(500, { message: "Unable to refresh your session." });
     }
   }
 });
