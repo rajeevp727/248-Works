@@ -9,6 +9,8 @@ async function request(path, options = {}) {
   if (!response.ok) {
     const error = new Error(body.message || "Request failed.");
     error.status = response.status;
+    error.code = body.code;
+    error.retryAfterSeconds = body.retryAfterSeconds;
     throw error;
   }
   return body;
@@ -53,5 +55,29 @@ export const authService = {
   },
   async verifyCode(payload) {
     return request("/api/auth/verify-code", { method: "POST", body: JSON.stringify(payload) });
+  },
+  startSocialLogin(provider, role) {
+    localStorage.setItem("248works.pendingRole", role);
+    localStorage.setItem("248works.pendingProvider", provider);
+    window.location.assign("/.auth/login/" + provider + "?post_login_redirect_uri=" + encodeURIComponent(window.location.origin + "/"));
+  },
+  getPendingSocialLogin() {
+    return {
+      role: localStorage.getItem("248works.pendingRole") || "JobSeeker",
+      provider: localStorage.getItem("248works.pendingProvider") || ""
+    };
+  },
+  clearPendingSocialLogin() {
+    localStorage.removeItem("248works.pendingRole");
+    localStorage.removeItem("248works.pendingProvider");
+  },
+  async exchangeSwaSession(role, replaceOldest = false) {
+    const response = await request("/api/auth/swa-session", {
+      method: "POST",
+      body: JSON.stringify({ role, replaceOldest })
+    });
+    this.clearPendingSocialLogin();
+    this.saveSession(response);
+    return response;
   }
 };
