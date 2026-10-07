@@ -1,4 +1,4 @@
-name: PR Auto Approve and Merge
+name: PR Auto Merge
 
 on:
   pull_request_target:
@@ -9,15 +9,14 @@ permissions:
   pull-requests: write
 
 jobs:
-  auto_approve:
+  auto_merge:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - name: Auto approve PR
+      - name: Enable auto-merge
         env:
-          GH_TOKEN: ${{ secrets.PR_AUTOMATION_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          test -n "$GH_TOKEN" || { echo "PR_AUTOMATION_TOKEN is not configured"; exit 1; }
-          gh pr review "$PR_NUMBER" --repo "$REPO" --approve --body "Automated approval: PR checks passed and the change is ready for deployment."
+          gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash
