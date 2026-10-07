@@ -202,6 +202,18 @@ function App() {
     showToast("Signed in successfully. Welcome to 248 Works.");
   };
 
+  useEffect(() => {
+    const protectedModes = ["applications","saved","alerts","profile","employer-dashboard","admin"];
+    if (protectedModes.includes(mode) && !session) {
+      setAuthPurpose(mode === "employer-dashboard" ? "Employer" : "JobSeeker");
+      setAuthOpen(true);
+      navigate("/");
+    }
+  }, [mode, session]);
+
+  useEffect(() => {
+    if (session?.user?.role) refreshRoleData(session.user.role);
+  }, []);
   const logout = async () => {
     await authService.logout();
     setSession(null);
