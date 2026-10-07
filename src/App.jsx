@@ -50,6 +50,17 @@ function App() {
   }, [query, category]);
 
   useEffect(() => {
+    if (!selectedJob) return undefined;
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") setSelectedJob(null);
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [selectedJob]);
+
+  useEffect(() => {
     dataService.getApplications()
       .then(setApplications)
       .finally(() => setLoading(false));
