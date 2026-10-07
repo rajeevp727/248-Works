@@ -8,12 +8,15 @@ import logo from "./assets/248-works-logo.svg";
 const brand = "248 Works";
 
 const formatInrInput = (value) => {
-  const digits = String(value ?? "").replace(/\\D/g, "");
+  const digits = String(value ?? "").replace(/\D/g, "");
   if (!digits) return "";
 
-  // Format as Indian currency without relying on Number(), which can produce
-  // NaN/Infinity for malformed or very large intermediate input values.
-  return digits.replace(/\\B(?=(\\d{2})+(\\d)(?!\\d))/g, ",");
+  // Format Indian numbering without Number(), preserving large salary values.
+  const lastThree = digits.slice(-3);
+  const leading = digits.slice(0, -3);
+  if (!leading) return lastThree;
+
+  return leading.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree;
 };
 
 function App() {
