@@ -48,10 +48,19 @@ function App() {
 
   useEffect(() => {
     let active = true;
+    const params = new URLSearchParams(window.location.search);
+    const authCode = params.get("auth_code");
     const pending = authService.getPendingSocialLogin();
-    if (!pending.provider) return undefined;
 
-    authService.exchangeSwaSession(pending.role)
+    if (authCode) {
+      localStorage.setItem("248works.pendingAuthCode", authCode);
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+    }
+
+    const current = authService.getPendingSocialLogin();
+    if (!current.code) return undefined;
+
+    authService.exchangeTriSendCode(current.code)
       .then((nextSession) => {
         if (!active) return;
         setSession(nextSession);
@@ -61,7 +70,7 @@ function App() {
       .catch((error) => {
         if (!active) return;
         if (error.status === 409 && error.code === "MAX_SESSIONS") {
-          setAuthPurpose(pending.role);
+          setAuthPurpose(current.role);
           setSocialPending(true);
           setAuthOpen(true);
         } else {
@@ -69,6 +78,7 @@ function App() {
           showToast(error.message || "Social sign-in could not be completed.");
         }
       });
+
     return () => { active = false; };
   }, []);
 

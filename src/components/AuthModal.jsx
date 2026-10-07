@@ -47,8 +47,9 @@ export default function AuthModal({ role, onClose, onAuthenticated, socialPendin
     setBusy(true);
     setMessage("");
     try {
+      const pending = authService.getPendingSocialLogin();
       const result = socialPending
-        ? await authService.exchangeSwaSession(role, true)
+        ? await authService.exchangeTriSendCode(pending.code, true)
         : await authService.verifyCode({ email, code, role, replaceOldest: true });
       onAuthenticated(result);
     } catch (error) {
@@ -80,8 +81,7 @@ export default function AuthModal({ role, onClose, onAuthenticated, socialPendin
               <button className="secondary full" disabled={busy} onClick={() => {
                 setSessionWarning(false);
                 authService.clearPendingSocialLogin();
-                if (socialPending) window.location.assign("/.auth/logout?post_logout_redirect_uri=" + encodeURIComponent(window.location.origin + "/"));
-                else setMessage("Login cancelled. Your existing sessions are unchanged.");
+                setMessage("Login cancelled. Your existing sessions are unchanged.");
               }}>
                 Cancel
               </button>
