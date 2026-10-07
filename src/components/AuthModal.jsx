@@ -41,9 +41,9 @@ export default function AuthModal({ role, onClose, onAuthenticated, socialPendin
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop">
       <div className="modal auth-modal" onClick={(event) => event.stopPropagation()}>
-        <button className="close" onClick={onClose} aria-label="Close">×</button>
+        <button className="close" onClick={onClose} aria-label="Close sign-in dialog">×</button>
         <div className="eyebrow">248 WORKS ACCOUNT</div>
         <h2>{role === "Employer" ? "Employer sign in" : "Job seeker sign in"}</h2>
 
