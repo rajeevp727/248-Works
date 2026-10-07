@@ -343,7 +343,10 @@ function App() {
       <footer className="site-footer">
         <span>© {new Date().getFullYear()} 248 Works</span>
         <span>Telangana-first local hiring platform</span>
-        <span>Terms · Privacy · Grievance</span>
+        <span>
+          Terms · <a href="/privacy" style={{ color: "inherit" }}>Privacy</a> ·{" "}
+          <a href="/grievance" style={{ color: "inherit" }}>Grievance</a>
+        </span>
       </footer>
 
       {authOpen && (
