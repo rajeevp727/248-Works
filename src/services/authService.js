@@ -97,6 +97,60 @@ export const authService = {
     return body;
   },
 
+  async passwordRegister({ email, password, name, role, replaceOldest = false }) {
+    requireTriSend();
+    const response = await fetch(TRISEND_AUTH_URL + "/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        password,
+        name,
+        appId: APP_ID,
+        role,
+        replaceOldest
+      })
+    });
+
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(body.message || "Registration failed.");
+      error.status = response.status;
+      error.code = body.code;
+      error.maxSessions = body.maxSessions;
+      throw error;
+    }
+
+    this.saveSession(body);
+    return body;
+  },
+
+  async passwordLogin({ email, password, replaceOldest = false }) {
+    requireTriSend();
+    const response = await fetch(TRISEND_AUTH_URL + "/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        password,
+        appId: APP_ID,
+        replaceOldest
+      })
+    });
+
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(body.message || "Login failed.");
+      error.status = response.status;
+      error.code = body.code;
+      error.maxSessions = body.maxSessions;
+      throw error;
+    }
+
+    this.saveSession(body);
+    return body;
+  },
+
   async refresh() {
     requireTriSend();
     const session = this.getSession();
