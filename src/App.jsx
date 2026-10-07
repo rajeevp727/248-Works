@@ -301,7 +301,7 @@ function App() {
                   </select>
                 </label>
                 <label>Salary <span className="required-mark" aria-hidden="true">*</span>
-                  <input required inputMode="numeric" value={form.salary} onChange={(e) => setForm({...form, salary: formatInrInput(e.target.value)})} onBlur={(e) => setForm({...form, salary: formatInrInput(e.target.value)})} placeholder="₹12,000–₹16,000" />
+                  <input required type="text" inputMode="numeric" pattern="[0-9,]*" value={form.salary} onKeyDown={(e) => { if (!/[0-9]/.test(e.key) && !["Backspace", "Delete", "Tab", "ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} onChange={(e) => setForm({...form, salary: formatInrInput(e.target.value)})} onBlur={(e) => setForm({...form, salary: formatInrInput(e.target.value)})} placeholder="₹12,000–₹16,000" />
                 </label>
               </div>
 
