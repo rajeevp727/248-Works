@@ -1,10 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { authService } from "../services/authService";
 
 export default function AuthModal({ role, onClose, onAuthenticated, socialPending = false }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [sessionWarning, setSessionWarning] = useState(socialPending);
+
+  useEffect(() => {
+    const handleEscape = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [onClose]);
 
   const socialLogin = (provider) => {
     try {
