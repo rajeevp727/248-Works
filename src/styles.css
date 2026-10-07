@@ -430,3 +430,11 @@ textarea:focus-visible {
     transform: none;
   }
 }
+
+
+/* Required field marker */
+.required-mark {
+  color: #dc2626;
+  font-weight: 800;
+  margin-left: 2px;
+}
