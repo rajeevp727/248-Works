@@ -7,6 +7,25 @@ import logo from "./assets/248-works-logo.svg";
 
 const brand = "248 Works";
 
+const getRouteFromPathname = (pathname) => {
+  switch (pathname) {
+    case "/":
+      return "home";
+    case "/emplyee/jobs":
+      return "seeker";
+    case "/employer/jobs/post":
+      return "provider";
+    case "/applications":
+      return "applications";
+    case "/privacy":
+      return "privacy";
+    case "/grievance":
+      return "grievance";
+    default:
+      return "not-found";
+  }
+};
+
 const formatInrInput = (value) => {
   const digits = String(value ?? "").replace(/\D/g, "");
   if (!digits) return "";
@@ -21,7 +40,15 @@ const formatInrInput = (value) => {
 
 function App() {
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState("home");
+  const [mode, setMode] = useState(() => getRouteFromPathname(window.location.pathname));
+
+  const navigate = (path) => {
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, "", path);
+    }
+    setMode(getRouteFromPathname(path));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
   const [query, setQuery] = useState("");
@@ -51,6 +78,16 @@ function App() {
   useEffect(() => {
     loadJobs();
   }, [query, category]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setMode(getRouteFromPathname(window.location.pathname));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   useEffect(() => {
     if (!selectedJob) return undefined;
@@ -176,13 +213,13 @@ function App() {
       )}
 
       <header className="topbar">
-        <button className="brand" onClick={() => setMode("home")} aria-label="248 Works home">
+        <button className="brand" onClick={() => navigate("/")} aria-label="248 Works home">
           <img className="brand-logo" src={logo} alt="248 Works" />
         </button>
         <nav>
-          <button className={mode === "seeker" ? "nav-active" : ""} onClick={() => setMode("seeker")}>Find Jobs</button>
-          <button className={mode === "provider" ? "nav-active" : ""} onClick={() => setMode("provider")}>For Employers</button>
-          <button className={mode === "applications" ? "nav-active" : ""} onClick={() => setMode("applications")}>Applications</button>
+          <button className={mode === "seeker" ? "nav-active" : ""} onClick={() => navigate("/emplyee/jobs")}>Find Jobs</button>
+          <button className={mode === "provider" ? "nav-active" : ""} onClick={() => navigate("/employer/jobs/post")}>For Employers</button>
+          <button className={mode === "applications" ? "nav-active" : ""} onClick={() => navigate("/applications")}>Applications</button>
         </nav>
       </header>
 
@@ -194,8 +231,8 @@ function App() {
               <h1>Find the right people.<br /><span>Find the right work.</span></h1>
               <p>248 Works connects job seekers with businesses across Telangana — simply, quickly and transparently.</p>
               <div className="hero-actions">
-                <button className="primary" onClick={() => setMode("seeker")}>Find Jobs →</button>
-                <button className="secondary" onClick={() => setMode("provider")}>Post a Job</button>
+                <button className="primary" onClick={() => navigate("/emplyee/jobs")}>Find Jobs →</button>
+                <button className="secondary" onClick={() => navigate("/employer/jobs/post")}>Post a Job</button>
               </div>
               <div className="trust-row">
                 <span>✓ Free job-seeker registration</span>
@@ -247,7 +284,7 @@ function App() {
         <main className="page">
           <div className="page-heading">
             <div><div className="eyebrow">TELANGANA JOB SEEKER</div><h1>Find your next opportunity.</h1><p>Search Telangana openings and apply without a joining fee.</p></div>
-            <button className="secondary" onClick={() => setMode("applications")}>Applications ({applications.length})</button>
+            <button className="secondary" onClick={() => navigate("/applications")}>Applications ({applications.length})</button>
           </div>
 
           <div className="search-panel">
@@ -349,6 +386,84 @@ function App() {
         </main>
       )}
 
+
+      {mode === "privacy" && (
+        <main className="page legal-page">
+          <div className="page-heading">
+            <div>
+              <div className="eyebrow">248 WORKS · LEGAL</div>
+              <h1>Privacy Policy</h1>
+              <p>How 248 Works handles information when you use the platform.</p>
+            </div>
+          </div>
+
+          <section className="legal-card">
+            <p className="legal-updated">Last updated: 7 October 2026</p>
+            <h2>1. Information we collect</h2>
+            <p>248 Works may collect information you provide when creating an account, building a job-seeker profile, posting a job, applying for a job, or contacting us. This can include your name, contact details, professional information, job listing information and account activity.</p>
+
+            <h2>2. How we use information</h2>
+            <p>We use information to provide and secure the platform, display relevant job opportunities, process applications, support employer and job-seeker workflows, prevent abuse, and improve the service.</p>
+
+            <h2>3. Authentication</h2>
+            <p>248 Works uses TriSend for centralized authentication. Authentication credentials and provider secrets are handled by the authentication service rather than being embedded in the 248 Works browser application.</p>
+
+            <h2>4. Sharing</h2>
+            <p>Information may be displayed to other platform users where it is necessary for the job-seeking or hiring workflow. We do not sell personal information as part of the core 248 Works service.</p>
+
+            <h2>5. Security and retention</h2>
+            <p>We use reasonable technical and organizational safeguards and retain information only as long as reasonably necessary for the relevant account, operational, legal or security purpose.</p>
+
+            <h2>6. Your choices</h2>
+            <p>You may request access, correction or deletion of personal information, subject to applicable legal and operational requirements. Additional account controls will be introduced as the platform moves beyond the MVP.</p>
+
+            <h2>7. Changes to this policy</h2>
+            <p>We may update this policy as 248 Works evolves. Material changes will be reflected on this page with an updated date.</p>
+          </section>
+        </main>
+      )}
+
+      {mode === "grievance" && (
+        <main className="page legal-page">
+          <div className="page-heading">
+            <div>
+              <div className="eyebrow">248 WORKS · SUPPORT</div>
+              <h1>Grievance Redressal</h1>
+              <p>A clear route for reporting platform, account, job-listing or hiring concerns.</p>
+            </div>
+          </div>
+
+          <section className="legal-card">
+            <h2>Raise a concern</h2>
+            <p>If you have a concern about an account, job listing, application, employer interaction, privacy matter, impersonation, misleading information or other platform abuse, please report it through the official 248 Works support channel made available to you during onboarding or account support.</p>
+
+            <h2>What to include</h2>
+            <div className="legal-list">
+              <div><strong>1. Identify the issue</strong><span>Explain what happened and when it occurred.</span></div>
+              <div><strong>2. Provide context</strong><span>Include the relevant job title, business or account details where applicable.</span></div>
+              <div><strong>3. Add supporting evidence</strong><span>Where appropriate, provide screenshots or other information that helps us investigate.</span></div>
+            </div>
+
+            <h2>Review process</h2>
+            <p>We will review complaints based on the information available and may request additional details when necessary. Where appropriate, we may restrict listings, accounts or platform access while an issue is investigated.</p>
+
+            <h2>Important</h2>
+            <p>248 Works is currently an MVP focused on Telangana. A dedicated published grievance-officer contact and formal commercial support workflow will be added before full commercial launch.</p>
+          </section>
+        </main>
+      )}
+
+      {mode === "not-found" && (
+        <main className="page legal-page">
+          <div className="legal-card not-found-card">
+            <div className="eyebrow">404 · PAGE NOT FOUND</div>
+            <h1>We couldn't find that page.</h1>
+            <p className="muted">The URL may be incorrect, or the page may have moved.</p>
+            <button className="primary" onClick={() => navigate("/")}>Back to 248 Works</button>
+          </div>
+        </main>
+      )}
+
       {selectedJob && (
         <div className="modal-backdrop">
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -370,7 +485,7 @@ function App() {
         <span>© {new Date().getFullYear()} 248 Works</span>
         <span>Telangana-first local hiring platform</span>
         <span>
-          Terms · <a href="/privacy" style={{ color: "inherit" }}>Privacy</a> ·{" "}
+          <a href="/privacy" style={{ color: "inherit" }}>Privacy</a> ·{" "}
           <a href="/grievance" style={{ color: "inherit" }}>Grievance</a>
         </span>
       </footer>

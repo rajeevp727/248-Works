@@ -438,3 +438,95 @@ textarea:focus-visible {
   font-weight: 800;
   margin-left: 2px;
 }
+
+
+/* Legal and graceful-route pages */
+.legal-page {
+  max-width: 980px;
+}
+
+.legal-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 34px;
+  box-shadow: 0 6px 24px rgba(16,24,40,.04);
+}
+
+.legal-card h2 {
+  margin: 28px 0 9px;
+  font-size: 20px;
+  letter-spacing: -.3px;
+}
+
+.legal-card h2:first-of-type {
+  margin-top: 10px;
+}
+
+.legal-card p {
+  color: #667085;
+  line-height: 1.75;
+  font-size: 14px;
+}
+
+.legal-updated {
+  font-size: 12px !important;
+  color: #98a2b3 !important;
+  margin-top: 0;
+}
+
+.legal-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.legal-list div {
+  display: grid;
+  gap: 3px;
+  padding: 14px 16px;
+  background: var(--surface-subtle);
+  border: 1px solid #edf0f4;
+  border-radius: 12px;
+}
+
+.legal-list strong {
+  font-size: 13px;
+  color: #344054;
+}
+
+.legal-list span {
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.not-found-card {
+  text-align: center;
+  padding: 64px 34px;
+}
+
+.not-found-card h1 {
+  font-size: 42px;
+  letter-spacing: -1.8px;
+  margin: 10px 0;
+}
+
+.not-found-card .primary {
+  margin-top: 18px;
+}
+
+@media (max-width: 700px) {
+  .legal-card {
+    padding: 24px 20px;
+    border-radius: 15px;
+  }
+
+  .not-found-card {
+    padding: 48px 22px;
+  }
+
+  .not-found-card h1 {
+    font-size: 34px;
+  }
+}
