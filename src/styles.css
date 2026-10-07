@@ -225,3 +225,208 @@
 .site-footer a {
   text-underline-offset: 3px;
 }
+
+
+/* Professional UI polish: consistent hierarchy, interaction states and clearer surfaces. */
+:root {
+  --brand-dark: #0b1220;
+  --brand-accent: #c7f36b;
+  --surface: #ffffff;
+  --surface-subtle: #f8fafc;
+  --border: #e3e8ef;
+  --text: #111827;
+  --muted-text: #667085;
+  --focus: #91b54d;
+}
+
+body {
+  background: #f5f7fb;
+  color: var(--text);
+}
+
+button,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(145,181,77,.28);
+  outline-offset: 2px;
+}
+
+.topbar {
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  box-shadow: 0 8px 24px rgba(11,18,32,.08);
+}
+
+.topbar nav button {
+  transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+
+.topbar nav button:hover {
+  transform: translateY(-1px);
+}
+
+.primary,
+.secondary {
+  min-height: 46px;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease, background .18s ease;
+}
+
+.primary:hover,
+.secondary:hover {
+  transform: translateY(-1px);
+}
+
+.primary:hover {
+  box-shadow: 0 8px 20px rgba(17,24,39,.12);
+}
+
+.secondary:hover {
+  box-shadow: 0 8px 20px rgba(17,24,39,.08);
+}
+
+.primary:active,
+.secondary:active {
+  transform: translateY(0);
+}
+
+.hero-card,
+.steps article,
+.job-card,
+.form-card,
+.side-panel,
+.search-panel,
+.application-list article,
+.fee-card {
+  box-shadow: 0 1px 2px rgba(16,24,40,.03);
+}
+
+.steps article,
+.job-card,
+.application-list article {
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.steps article:hover,
+.job-card:hover,
+.application-list article:hover {
+  transform: translateY(-2px);
+  border-color: #d5dde8;
+  box-shadow: 0 12px 30px rgba(16,24,40,.07);
+}
+
+.job-card h3 {
+  line-height: 1.25;
+}
+
+.job-card > strong {
+  color: #344054;
+}
+
+.job-card p:not(.muted) {
+  margin-top: 8px;
+}
+
+.search-panel {
+  box-shadow: 0 6px 20px rgba(16,24,40,.04);
+}
+
+.search-panel input,
+.search-panel select,
+.form-card input,
+.form-card select,
+.form-card textarea {
+  min-height: 46px;
+  border-color: #d7dee8;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.search-panel input:hover,
+.search-panel select:hover,
+.form-card input:hover,
+.form-card select:hover,
+.form-card textarea:hover {
+  border-color: #c3ccd9;
+  background: #fff;
+}
+
+.search-panel input:focus,
+.search-panel select:focus,
+.form-card input:focus,
+.form-card select:focus,
+.form-card textarea:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(145,181,77,.12);
+  background: #fff;
+}
+
+.form-card label {
+  letter-spacing: .1px;
+}
+
+.optional-label {
+  color: #98a2b3;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 5px;
+}
+
+.form-card textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.form-card > .primary {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.side-panel {
+  align-self: start;
+}
+
+.pill {
+  white-space: nowrap;
+}
+
+.modal {
+  border: 1px solid rgba(16,24,40,.08);
+}
+
+.close {
+  transition: background .18s ease, transform .18s ease;
+}
+
+.close:hover {
+  background: #e7ebf0;
+  transform: rotate(4deg);
+}
+
+.toast {
+  max-width: min(420px, calc(100vw - 40px));
+  line-height: 1.45;
+}
+
+@media (max-width: 700px) {
+  .primary,
+  .secondary {
+    min-height: 48px;
+  }
+
+  .page-heading .secondary {
+    width: 100%;
+  }
+
+  .job-card:hover,
+  .steps article:hover,
+  .application-list article:hover {
+    transform: none;
+  }
+}
