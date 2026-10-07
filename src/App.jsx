@@ -7,6 +7,11 @@ import logo from "./assets/248-works-logo.svg";
 
 const brand = "248 Works";
 
+const formatInrInput = (value) => {
+  const digits = String(value || "").replace(/\\D/g, "");
+  return digits ? Number(digits).toLocaleString("en-IN") : "";
+};
+
 function App() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState("home");
@@ -275,7 +280,7 @@ function App() {
                   </select>
                 </label>
                 <label>Salary
-                  <input required value={form.salary} onChange={(e) => setForm({...form, salary:e.target.value})} placeholder="₹12,000–₹16,000" />
+                  <input required inputMode="numeric" value={form.salary} onChange={(e) => setForm({...form, salary: formatInrInput(e.target.value)})} placeholder="₹12,000–₹16,000" />
                 </label>
               </div>
 
@@ -291,7 +296,7 @@ function App() {
               </div>
 
               <label>Description
-                <textarea required rows="4" value={form.description} onChange={(e) => setForm({...form, description:e.target.value})} placeholder="Describe the role, timings, salary and expectations..." />
+                <textarea rows="4" value={form.description} onChange={(e) => setForm({...form, description:e.target.value})} placeholder="Describe the role, timings, salary and expectations (optional)..." />
               </label>
 
               <button className="primary" type="submit">Save Telangana job listing →</button>
