@@ -376,8 +376,7 @@ function App() {
             <button onClick={logout}>Sign out</button>
           ) : (
             <span className="auth-actions">
-              <button className="topbar-login" onClick={() => openAuth("login", "JobSeeker")}>Log in</button>
-              <button className="topbar-signup" onClick={() => openAuth("signup", "JobSeeker")}>Sign up</button>
+              <button className="topbar-signup" onClick={() => openAuth("login", "JobSeeker")}>Join Us</button>
             </span>
           )}
         </nav>
