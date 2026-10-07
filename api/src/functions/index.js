@@ -501,7 +501,9 @@ function publicJob(job) {
     vacancies: job.vacancies,
     skills: Array.isArray(job.skills) ? job.skills : [],
     posted: job.posted || "Recently",
-    createdAt: job.createdAt
+    createdAt: job.createdAt,
+    isActive: job.isActive !== false,
+    status: job.status || (job.isActive === false ? "Closed" : "Open")
   };
 }
 const mapJob = publicJob;
