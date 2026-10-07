@@ -517,6 +517,41 @@ function publicApplication(application, job) {
   };
 }
 
+app.http("health", {
+  methods: ["GET", "HEAD"], authLevel: "anonymous", route: "health",
+  handler: async (request, context) => {
+    try {
+      const connectionConfigured = Boolean(process.env.COSMOS_CONNECTION_STRING);
+      if (!connectionConfigured) {
+        return reply(503, {
+          status: "unhealthy",
+          database: "cosmos",
+          reason: "COSMOS_CONNECTION_STRING is not configured.",
+          databaseName: process.env.COSMOS_DATABASE_NAME || "248WorksDB",
+          containerName: process.env.COSMOS_CONTAINER_NAME || "248Data"
+        });
+      }
+
+      await db().read();
+      return reply(200, {
+        status: "healthy",
+        database: "cosmos",
+        databaseName: process.env.COSMOS_DATABASE_NAME || "248WorksDB",
+        containerName: process.env.COSMOS_CONTAINER_NAME || "248Data"
+      });
+    } catch (error) {
+      context.error(error);
+      return reply(503, {
+        status: "unhealthy",
+        database: "cosmos",
+        reason: "connection_failed",
+        errorType: error?.name || "Error",
+        statusCode: error?.statusCode || null
+      });
+    }
+  }
+});
+
 app.http("profile", {
   methods: ["GET", "PUT"], authLevel: "anonymous", route: "profile",
   handler: async (request, context) => {
@@ -703,7 +738,12 @@ app.http("jobs", {
       return reply(201, mapJob(job));
     } catch (error) {
       context.error(error);
-      return reply(500, { message: "Unable to load or save jobs." });
+      return reply(500, {
+        code: "JOBS_API_ERROR",
+        message: "Unable to load or save jobs. Check /api/health for Cosmos DB status.",
+        errorType: error?.name || "Error",
+        statusCode: error?.statusCode || null
+      });
     }
   }
 });
