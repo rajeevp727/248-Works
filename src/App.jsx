@@ -111,9 +111,12 @@ function App() {
   };
 
   const submitJob = async (event) => {
-    if (!requireAuth("Employer")) return;
-
+    // Always prevent the native form submission before auth/business logic.
+    // Otherwise an unauthenticated submit can fall through to the browser's
+    // default navigation and reload the SPA at "/".
     event.preventDefault();
+
+    if (!requireAuth("Employer")) return;
 
     if (!TELANGANA_LOCATIONS.includes(form.location)) {
       showToast("248 Works currently accepts jobs only within Telangana.");
