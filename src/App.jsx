@@ -76,6 +76,7 @@ function App() {
   const [session, setSession] = useState(() => authService.getSession());
   const [authOpen, setAuthOpen] = useState(false);
   const [authPurpose, setAuthPurpose] = useState("JobSeeker");
+  const [authMode, setAuthMode] = useState("login");
   const [socialPending, setSocialPending] = useState(false);
   const [form, setForm] = useState({
     title: "",
@@ -155,6 +156,7 @@ function App() {
         if (!active) return;
         if (error.status === 409 && error.code === "MAX_SESSIONS") {
           setAuthPurpose(current.role);
+          setAuthMode("login");
           setSocialPending(true);
           setAuthOpen(true);
         } else {
@@ -205,9 +207,24 @@ function App() {
   useEffect(() => {
     const protectedModes = ["applications","saved","alerts","profile","employer-dashboard","admin"];
     if (protectedModes.includes(mode) && !session) {
-      setAuthPurpose(mode === "employer-dashboard" ? "Employer" : "JobSeeker");
-      setAuthOpen(true);
+      openAuth("login", mode === "employer-dashboard" ? "Employer" : "JobSeeker");
       navigate("/");
+      return;
+    }
+
+    if (mode === "provider" && !session) {
+      openAuth("login", "Employer");
+      navigate("/");
+      return;
+    }
+
+    if (mode === "provider" && session?.user?.role === "JobSeeker") {
+      navigate("/emplyee/jobs");
+      return;
+    }
+
+    if (mode === "seeker" && session?.user?.role === "Employer") {
+      navigate("/employer/jobs");
     }
   }, [mode, session]);
 
@@ -274,10 +291,16 @@ function App() {
     showToast(exists ? "Job alert removed." : "Job alert created for this search.");
   };
 
+  const openAuth = (mode = "login", purpose = "JobSeeker") => {
+    setAuthMode(mode);
+    setAuthPurpose(purpose);
+    setSocialPending(false);
+    setAuthOpen(true);
+  };
+
   const requireAuth = (purpose) => {
     if (session) return true;
-    setAuthPurpose(purpose);
-    setAuthOpen(true);
+    openAuth("login", purpose);
     return false;
   };
 
@@ -342,8 +365,12 @@ function App() {
           <img className="brand-logo" src={logo} alt="248 Works" />
         </button>
         <nav>
-          <button className={mode === "seeker" ? "nav-active" : ""} onClick={() => navigate("/emplyee/jobs")}>Find Jobs</button>
-          <button className={mode === "provider" ? "nav-active" : ""} onClick={() => navigate("/employer/jobs/post")}>For Employers</button>
+          {(!session || session.user?.role === "JobSeeker") && (
+            <button className={mode === "seeker" ? "nav-active" : ""} onClick={() => navigate("/emplyee/jobs")}>Find Jobs</button>
+          )}
+          {(!session || session.user?.role === "Employer") && (
+            <button className={mode === "provider" ? "nav-active" : ""} onClick={() => session ? navigate("/employer/jobs/post") : openAuth("signup", "Employer")}>Post a Job</button>
+          )}
           {session?.user?.role === "JobSeeker" && <>
             <button className={mode === "applications" ? "nav-active" : ""} onClick={() => navigate("/applications")}>Applications</button>
             <button className={mode === "saved" ? "nav-active" : ""} onClick={() => navigate("/saved")}>Saved</button>
@@ -351,7 +378,14 @@ function App() {
           </>}
           {session?.user?.role === "Employer" && <button className={mode === "employer-dashboard" ? "nav-active" : ""} onClick={() => navigate("/employer/jobs")}>Manage Jobs</button>}
           {session && <button className={mode === "profile" ? "nav-active" : ""} onClick={() => navigate("/profile")}>Profile</button>}
-          {session ? <button onClick={logout}>Sign out</button> : null}
+          {session ? (
+            <button onClick={logout}>Sign out</button>
+          ) : (
+            <span className="auth-actions">
+              <button className="topbar-login" onClick={() => openAuth("login", "JobSeeker")}>Log in</button>
+              <button className="topbar-signup" onClick={() => openAuth("signup", "JobSeeker")}>Sign up</button>
+            </span>
+          )}
         </nav>
       </header>
 
@@ -363,8 +397,17 @@ function App() {
               <h1>Find the right people.<br /><span>Find the right work.</span></h1>
               <p>248 Works connects job seekers with businesses across Telangana — simply, quickly and transparently.</p>
               <div className="hero-actions">
-                <button className="primary" onClick={() => navigate("/emplyee/jobs")}>Find Jobs →</button>
-                <button className="secondary" onClick={() => navigate("/employer/jobs/post")}>Post a Job</button>
+                {(!session || session.user?.role === "JobSeeker") && (
+                  <button className="primary" onClick={() => navigate("/emplyee/jobs")}>Find Jobs →</button>
+                )}
+                {(!session || session.user?.role === "Employer") && (
+                  <button
+                    className="secondary"
+                    onClick={() => session ? navigate("/employer/jobs/post") : openAuth("signup", "Employer")}
+                  >
+                    Post a Job
+                  </button>
+                )}
               </div>
               <div className="trust-row">
                 <span>✓ Free job-seeker registration</span>
@@ -723,6 +766,7 @@ function App() {
       {authOpen && (
         <AuthModal
           role={authPurpose}
+          initialMode={authMode}
           socialPending={socialPending}
           onClose={() => setAuthOpen(false)}
           onAuthenticated={handleAuthenticated}
