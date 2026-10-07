@@ -365,12 +365,6 @@ function App() {
           <img className="brand-logo" src={logo} alt="248 Works" />
         </button>
         <nav>
-          {(!session || session.user?.role === "JobSeeker") && (
-            <button className={mode === "seeker" ? "nav-active" : ""} onClick={() => navigate("/emplyee/jobs")}>Find Jobs</button>
-          )}
-          {(!session || session.user?.role === "Employer") && (
-            <button className={mode === "provider" ? "nav-active" : ""} onClick={() => session ? navigate("/employer/jobs/post") : openAuth("signup", "Employer")}>Post a Job</button>
-          )}
           {session?.user?.role === "JobSeeker" && <>
             <button className={mode === "applications" ? "nav-active" : ""} onClick={() => navigate("/applications")}>Applications</button>
             <button className={mode === "saved" ? "nav-active" : ""} onClick={() => navigate("/saved")}>Saved</button>
