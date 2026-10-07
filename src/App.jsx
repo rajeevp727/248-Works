@@ -336,9 +336,9 @@ function App() {
       )}
 
       {selectedJob && (
-        <div className="modal-backdrop" onClick={() => setSelectedJob(null)}>
+        <div className="modal-backdrop">
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <button className="close" onClick={() => setSelectedJob(null)}>×</button>
+            <button className="close" onClick={() => setSelectedJob(null)} aria-label="Close job details">×</button>
             <span className="pill">{selectedJob.category}</span>
             <h2>{selectedJob.title}</h2>
             <strong>{selectedJob.company}</strong>
