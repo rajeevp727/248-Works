@@ -159,9 +159,9 @@ function App() {
           <img className="brand-logo" src={logo} alt="248 Works" />
         </button>
         <nav>
-          <button className={mode === "seeker" ? "nav-active" : ""} onClick={() => setMode("seeker")}>Find Work</button>
-          <button className={mode === "provider" ? "nav-active" : ""} onClick={() => setMode("provider")}>Hire People</button>
-          <button className={mode === "applications" ? "nav-active" : ""} onClick={() => setMode("applications")}>My Applications</button>
+          <button className={mode === "seeker" ? "nav-active" : ""} onClick={() => setMode("seeker")}>Find Jobs</button>
+          <button className={mode === "provider" ? "nav-active" : ""} onClick={() => setMode("provider")}>For Employers</button>
+          <button className={mode === "applications" ? "nav-active" : ""} onClick={() => setMode("applications")}>Applications</button>
         </nav>
       </header>
 
@@ -173,8 +173,8 @@ function App() {
               <h1>Find the right people.<br /><span>Find the right work.</span></h1>
               <p>248 Works connects job seekers with businesses across Telangana — simply, quickly and transparently.</p>
               <div className="hero-actions">
-                <button className="primary" onClick={() => setMode("seeker")}>I’m looking for work →</button>
-                <button className="secondary" onClick={() => setMode("provider")}>I’m hiring people</button>
+                <button className="primary" onClick={() => setMode("seeker")}>Find Jobs →</button>
+                <button className="secondary" onClick={() => setMode("provider")}>Post a Job</button>
               </div>
               <div className="trust-row">
                 <span>✓ Free job-seeker registration</span>
@@ -226,11 +226,11 @@ function App() {
         <main className="page">
           <div className="page-heading">
             <div><div className="eyebrow">TELANGANA JOB SEEKER</div><h1>Find your next opportunity.</h1><p>Search Telangana openings and apply without a joining fee.</p></div>
-            <button className="secondary" onClick={() => setMode("applications")}>My applications ({applications.length})</button>
+            <button className="secondary" onClick={() => setMode("applications")}>Applications ({applications.length})</button>
           </div>
 
           <div className="search-panel">
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search role, company or Telangana location..." />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search jobs by role, company or location..." />
             <select value={category} onChange={(e) => setCategory(e.target.value)}>
               {categories.map((item) => <option key={item}>{item}</option>)}
             </select>
@@ -245,7 +245,7 @@ function App() {
                 <p className="muted">📍 {job.location}, Telangana &nbsp; · &nbsp; {job.type}</p>
                 <div className="salary">{job.salary}</div>
                 <p>{job.description}</p>
-                <div className="job-footer"><span>{job.vacancies} opening{job.vacancies > 1 ? "s" : ""}</span><button className="primary small" onClick={() => setSelectedJob(job)}>View & Apply</button></div>
+                <div className="job-footer"><span>{job.vacancies} opening{job.vacancies > 1 ? "s" : ""}</span><button className="primary small" onClick={() => setSelectedJob(job)}>View Job</button></div>
               </article>
             ))}
           </div>
@@ -295,11 +295,11 @@ function App() {
                 </label>
               </div>
 
-              <label>Description
+              <label>Description <span className="optional-label">Optional</span>
                 <textarea rows="4" value={form.description} onChange={(e) => setForm({...form, description:e.target.value})} placeholder="Describe the role, timings, salary and expectations (optional)..." />
               </label>
 
-              <button className="primary" type="submit">Save Telangana job listing →</button>
+              <button className="primary" type="submit">Publish Job →</button>
             </form>
 
             <div className="side-panel">
@@ -340,7 +340,7 @@ function App() {
             <p>{selectedJob.description}</p>
             <h4>Skills</h4>
             <div className="skill-row">{selectedJob.skills.map(skill => <span key={skill}>{skill}</span>)}</div>
-            <button className="primary full" onClick={() => apply(selectedJob.id)}>Apply for this job</button>
+            <button className="primary full" onClick={() => apply(selectedJob.id)}>Apply Now</button>
           </div>
         </div>
       )}
