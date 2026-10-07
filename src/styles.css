@@ -774,3 +774,41 @@ textarea:focus-visible {
     display: none;
   }
 }
+
+
+.auth-mode-label {
+  margin: 18px 0 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--brand-accent);
+  background: #f7f9f3;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .02em;
+}
+
+.auth-mode-switch {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid #edf0f3;
+  color: #667085;
+  font-size: 11px;
+}
+
+.auth-mode-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #587b25;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.auth-mode-link:hover {
+  text-decoration: underline;
+}
