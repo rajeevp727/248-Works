@@ -298,7 +298,7 @@ function App() {
                   </select>
                 </label>
                 <label>Salary <span className="required-mark" aria-hidden="true">*</span>
-                  <input required inputMode="numeric" value={form.salary} onChange={(e) => setForm({...form, salary: formatInrInput(e.target.value)})} placeholder="₹12,000–₹16,000" />
+                  <input required inputMode="numeric" value={form.salary} onChange={(e) => setForm({...form, salary: formatInrInput(e.target.value)})} onBlur={(e) => setForm({...form, salary: formatInrInput(e.target.value)})} placeholder="₹12,000–₹16,000" />
                 </label>
               </div>
 
