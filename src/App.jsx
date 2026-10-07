@@ -8,8 +8,12 @@ import logo from "./assets/248-works-logo.svg";
 const brand = "248 Works";
 
 const formatInrInput = (value) => {
-  const digits = String(value || "").replace(/\\D/g, "");
-  return digits ? Number(digits).toLocaleString("en-IN") : "";
+  const digits = String(value ?? "").replace(/\\D/g, "");
+  if (!digits) return "";
+
+  // Format as Indian currency without relying on Number(), which can produce
+  // NaN/Infinity for malformed or very large intermediate input values.
+  return digits.replace(/\\B(?=(\\d{2})+(\\d)(?!\\d))/g, ",");
 };
 
 function App() {
@@ -268,21 +272,21 @@ function App() {
               <h2>Post a Telangana job</h2>
               <p className="muted">Job listings are currently restricted to Telangana locations. Employer verification and payment workflows will be enabled before commercial launch.</p>
 
-              <label>Job title
+              <label>Job title <span className="required-mark" aria-hidden="true">*</span>
                 <input required value={form.title} onChange={(e) => setForm({...form, title:e.target.value})} placeholder="e.g. Store Assistant" />
               </label>
 
-              <label>Business name
+              <label>Business name <span className="required-mark" aria-hidden="true">*</span>
                 <input required value={form.company} onChange={(e) => setForm({...form, company:e.target.value})} placeholder="Your shop / business" />
               </label>
 
               <div className="two-col">
-                <label>Telangana location
+                <label>Telangana location <span className="required-mark" aria-hidden="true">*</span>
                   <select required value={form.location} onChange={(e) => setForm({...form, location:e.target.value})}>
                     {TELANGANA_LOCATIONS.map((location) => <option key={location}>{location}</option>)}
                   </select>
                 </label>
-                <label>Salary
+                <label>Salary <span className="required-mark" aria-hidden="true">*</span>
                   <input required inputMode="numeric" value={form.salary} onChange={(e) => setForm({...form, salary: formatInrInput(e.target.value)})} placeholder="₹12,000–₹16,000" />
                 </label>
               </div>
@@ -298,7 +302,7 @@ function App() {
                 </label>
               </div>
 
-              <label>Description <span className="optional-label">Optional</span>
+              <label>Description
                 <textarea rows="4" value={form.description} onChange={(e) => setForm({...form, description:e.target.value})} placeholder="Describe the role, timings, salary and expectations (optional)..." />
               </label>
 
