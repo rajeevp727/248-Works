@@ -141,25 +141,8 @@ export default function AuthModal({
             : "Sign in securely through TriSend. Your role controls the workspace you see."}
         </p>
 
-        <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
-          <button
-            type="button"
-            className={mode === "login" ? "auth-tab active" : "auth-tab"}
-            onClick={() => switchMode("login")}
-            role="tab"
-            aria-selected={mode === "login"}
-          >
-            Log in
-          </button>
-          <button
-            type="button"
-            className={mode === "signup" ? "auth-tab active" : "auth-tab"}
-            onClick={() => switchMode("signup")}
-            role="tab"
-            aria-selected={mode === "signup"}
-          >
-            Sign up
-          </button>
+        <div className="auth-mode-label" aria-live="polite">
+          {mode === "signup" ? "Sign up" : "Log in"}
         </div>
 
         {sessionWarning ? (
@@ -269,6 +252,17 @@ export default function AuthModal({
                 Continue with Microsoft
               </button>
               <small className="auth-provider-note">Google and Microsoft authentication are securely handled by TriSend.</small>
+            </div>
+
+            <div className="auth-mode-switch">
+              <span>{mode === "signup" ? "Already have an account?" : "Don't have an account?"}</span>
+              <button
+                type="button"
+                className="auth-mode-link"
+                onClick={() => switchMode(mode === "signup" ? "login" : "signup")}
+              >
+                {mode === "signup" ? "Log in" : "Sign up"}
+              </button>
             </div>
           </>
         )}
