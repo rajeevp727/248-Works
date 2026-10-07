@@ -124,10 +124,10 @@ export const authService = {
   async logout() {
     const session = this.getSession();
     try {
-      if (session?.accessToken) {
+      if (session?.token) {
         await request(TRISEND_AUTH_URL + "/auth/logout", {
           method: "POST",
-          headers: { Authorization: "Bearer " + session.accessToken }
+          headers: { Authorization: "Bearer " + session.token }
         });
       }
     } finally {
