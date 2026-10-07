@@ -515,6 +515,157 @@ function publicApplication(application, job) {
   };
 }
 
+app.http("profile", {
+  methods: ["GET", "PUT"], authLevel: "anonymous", route: "profile",
+  handler: async (request, context) => {
+    try {
+      const user = await currentUser(request);
+      if (!user) return reply(401, { message: "Please sign in first." });
+      if (request.method === "GET") {
+        return reply(200, {
+          id: user.id, email: user.email, role: user.role, name: user.name || "",
+          phone: user.phone || "", location: user.location || "", state: user.state || STATE,
+          headline: user.headline || "", bio: user.bio || "",
+          skills: Array.isArray(user.skills) ? user.skills : [],
+          experience: user.experience || "", education: user.education || "",
+          resumeUrl: user.resumeUrl || "", company: user.company || "",
+          businessType: user.businessType || ""
+        });
+      }
+      const body = await request.json().catch(() => ({}));
+      user.name = String(body.name ?? user.name ?? "").trim().slice(0, 120);
+      user.phone = String(body.phone ?? user.phone ?? "").trim().slice(0, 30);
+      user.location = String(body.location ?? user.location ?? "").trim().slice(0, 100);
+      user.headline = String(body.headline ?? user.headline ?? "").trim().slice(0, 180);
+      user.bio = String(body.bio ?? user.bio ?? "").trim().slice(0, 2000);
+      user.skills = Array.isArray(body.skills) ? body.skills.map(v => String(v).trim()).filter(Boolean).slice(0, 30) : (user.skills || []);
+      user.experience = String(body.experience ?? user.experience ?? "").trim().slice(0, 120);
+      user.education = String(body.education ?? user.education ?? "").trim().slice(0, 180);
+      user.resumeUrl = String(body.resumeUrl ?? user.resumeUrl ?? "").trim().slice(0, 500);
+      user.company = String(body.company ?? user.company ?? "").trim().slice(0, 160);
+      user.businessType = String(body.businessType ?? user.businessType ?? "").trim().slice(0, 120);
+      user.updatedAt = iso();
+      await upsert(user);
+      return reply(200, { message: "Profile updated.", profile: {
+        id:user.id,email:user.email,role:user.role,name:user.name,phone:user.phone,location:user.location,state:user.state,
+        headline:user.headline,bio:user.bio,skills:user.skills,experience:user.experience,education:user.education,
+        resumeUrl:user.resumeUrl,company:user.company,businessType:user.businessType
+      }});
+    } catch (error) {
+      context.error(error);
+      return reply(500, { message: "Unable to update your profile." });
+    }
+  }
+});
+
+app.http("saved-jobs", {
+  methods: ["GET", "POST", "DELETE"], authLevel: "anonymous", route: "saved-jobs",
+  handler: async (request, context) => {
+    try {
+      const user = await currentUser(request);
+      if (!user || user.role !== "JobSeeker") return reply(401, { message: "Job seeker sign-in is required." });
+      if (request.method === "GET") {
+        const rows = await query("SELECT * FROM c WHERE c.type=@type AND c.ownerId=@ownerId ORDER BY c.createdAt DESC",
+          [{name:"@type",value:"savedJob"},{name:"@ownerId",value:user.id}]);
+        const result=[];
+        for(const row of rows){ const job=await read(row.jobId,"job"); if(job?.isActive) result.push(mapJob(job)); }
+        return reply(200,result);
+      }
+      const body = await request.json().catch(() => ({}));
+      const jobId = String(body.jobId || "").trim();
+      const job = await read(jobId, "job");
+      if (!job || !job.isActive || job.state !== STATE) return reply(404, {message:"Job not found."});
+      const id = "saved:" + user.id + ":" + jobId;
+      if (request.method === "DELETE") {
+        await remove(id,"savedJob");
+        return reply(200,{message:"Job removed from saved jobs."});
+      }
+      await upsert({id,type:"savedJob",ownerId:user.id,jobId,createdAt:iso()});
+      return reply(201,{message:"Job saved."});
+    } catch(error) {
+      context.error(error);
+      return reply(500,{message:"Unable to update saved jobs."});
+    }
+  }
+});
+
+app.http("employer-jobs", {
+  methods: ["GET", "PATCH"], authLevel: "anonymous", route: "employer/jobs",
+  handler: async (request, context) => {
+    try {
+      const user = await currentUser(request);
+      if (!user || !["Employer","Admin"].includes(user.role)) return reply(401,{message:"Employer sign-in is required."});
+      if (request.method === "GET") {
+        const rows = await query("SELECT * FROM c WHERE c.type=@type AND c.employerId=@employerId ORDER BY c.createdAt DESC",
+          [{name:"@type",value:"job"},{name:"@employerId",value:user.id}]);
+        return reply(200,rows.map(mapJob));
+      }
+      const body=await request.json().catch(()=>({}));
+      const job=await read(String(body.jobId||""),"job");
+      if(!job || !assertRowAccess(user,job,"employerId")) return reply(404,{message:"Job not found."});
+      if (body.action === "close") { job.isActive=false; job.status="Closed"; }
+      if (body.action === "reopen") { job.isActive=true; job.status="Open"; }
+      if (body.action === "edit") {
+        if (body.title !== undefined) job.title=String(body.title).trim().slice(0,160);
+        if (body.salary !== undefined) job.salary=String(body.salary).trim().slice(0,80);
+        if (body.description !== undefined) job.description=String(body.description).trim().slice(0,3000);
+        if (body.vacancies !== undefined) job.vacancies=Math.max(1,Number(body.vacancies)||1);
+      }
+      job.updatedAt=iso(); await upsert(job);
+      return reply(200,mapJob(job));
+    } catch(error) { context.error(error); return reply(500,{message:"Unable to manage the job."}); }
+  }
+});
+
+app.http("employer-applications", {
+  methods: ["GET", "PATCH"], authLevel: "anonymous", route: "employer/applications",
+  handler: async (request, context) => {
+    try {
+      const user=await currentUser(request);
+      if(!user || !["Employer","Admin"].includes(user.role)) return reply(401,{message:"Employer sign-in is required."});
+      const jobs=await query("SELECT * FROM c WHERE c.type=@type AND c.employerId=@employerId",
+        [{name:"@type",value:"job"},{name:"@employerId",value:user.id}]);
+      const jobMap=new Map(jobs.map(j=>[j.id,j]));
+      if(request.method==="GET"){
+        const rows=await query("SELECT * FROM c WHERE c.type=@type ORDER BY c.appliedAt DESC",
+          [{name:"@type",value:"application"}]);
+        return reply(200,rows.filter(r=>jobMap.has(r.jobId)).map(r=>({
+          id:r.id,jobId:r.jobId,candidateId:r.candidateId,candidateName:r.candidateName,status:r.status,
+          appliedOn:r.appliedAt?new Date(r.appliedAt).toLocaleDateString("en-IN"):"Recently",
+          job:mapJob(jobMap.get(r.jobId))
+        })));
+      }
+      const body=await request.json().catch(()=>({}));
+      const row=await read(String(body.applicationId||""),"application");
+      const job=row ? jobMap.get(row.jobId) : null;
+      if(!row || !job) return reply(404,{message:"Application not found."});
+      const allowed=["Applied","Viewed","Shortlisted","Interview","Selected","Rejected"];
+      const status=String(body.status||"");
+      if(!allowed.includes(status)) return reply(400,{message:"Invalid application status."});
+      row.status=status; row.updatedAt=iso(); await upsert(row);
+      return reply(200,{id:row.id,status:row.status});
+    } catch(error) { context.error(error); return reply(500,{message:"Unable to manage applications."}); }
+  }
+});
+
+app.http("admin-summary", {
+  methods: ["GET"], authLevel: "anonymous", route: "admin/summary",
+  handler: async (request, context) => {
+    try {
+      const user=await currentUser(request);
+      if(!user || user.role!=="Admin") return reply(403,{message:"Administrator access is required."});
+      const [users,jobs,applications]=await Promise.all([
+        query("SELECT * FROM c WHERE c.type=@type",[{name:"@type",value:"user"}]),
+        query("SELECT * FROM c WHERE c.type=@type",[{name:"@type",value:"job"}]),
+        query("SELECT * FROM c WHERE c.type=@type",[{name:"@type",value:"application"}])
+      ]);
+      return reply(200,{users:users.length,jobSeekers:users.filter(u=>u.role==="JobSeeker").length,
+        employers:users.filter(u=>u.role==="Employer").length,jobs:jobs.length,openJobs:jobs.filter(j=>j.isActive).length,
+        applications:applications.length});
+    } catch(error) { context.error(error); return reply(500,{message:"Unable to load admin summary."}); }
+  }
+});
+
 app.http("jobs", {
   methods: ["GET", "POST"], authLevel: "anonymous", route: "jobs",
   handler: async (request, context) => {
