@@ -240,11 +240,6 @@ async function sendEmail(recipient, subject, body) {
   if (!response.ok) throw new Error("TriSend rejected email: " + response.status + " " + await response.text());
 }
 
-app.http("health", {
-  methods: ["GET"], authLevel: "anonymous", route: "health",
-  handler: async () => reply(200, { ok: true, service: "248 Works API" })
-});
-
 app.http("auth-request-code", {
   methods: ["POST"], authLevel: "anonymous", route: "auth/request-code",
   handler: async (request, context) => {
