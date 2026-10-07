@@ -206,3 +206,22 @@
   border-radius: 0 !important;
   padding: 0 !important;
 }
+
+
+/* Footer spacing: keep the legal/navigation row visually separated from page content. */
+.site-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 28px;
+  padding: 30px 8vw 36px;
+  border-top: 1px solid #e3e8ef;
+  color: #7a8494;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.site-footer a {
+  text-underline-offset: 3px;
+}
