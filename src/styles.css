@@ -530,3 +530,19 @@ textarea:focus-visible {
     font-size: 34px;
   }
 }
+
+
+.job-actions,.management-actions{display:flex;gap:8px;align-items:center}
+.dashboard-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:28px}
+.dashboard-stats>div{background:#fff;border:1px solid var(--border);border-radius:15px;padding:20px}
+.dashboard-stats strong{display:block;font-size:28px}
+.dashboard-stats span{display:block;color:#7a8494;font-size:12px;margin-top:4px}
+.dashboard-section{margin-top:28px}
+.dashboard-section h2{font-size:22px;margin-bottom:14px}
+.management-list{display:grid;gap:10px}
+.management-list article{background:#fff;border:1px solid var(--border);border-radius:15px;padding:17px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.management-list h3{margin:8px 0 3px}
+.management-list select{border:1px solid #d7dee8;background:#fff;border-radius:9px;padding:10px;font:inherit}
+.profile-card{max-width:900px}
+@media(max-width:900px){.dashboard-stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.job-actions{width:100%;justify-content:flex-end}.management-list article{align-items:flex-start;flex-direction:column}.management-list select{width:100%}.dashboard-stats{grid-template-columns:1fr 1fr}}
