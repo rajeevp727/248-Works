@@ -35,6 +35,17 @@ const assertTelanganaLocation = (location) => {
   if (!TELANGANA_LOCATIONS.includes(location)) {
     throw new Error("248 Works currently accepts jobs only within Telangana.");
   }
+  async getProfile() { return apiRequest("/api/profile"); },
+  async updateProfile(profile) { return apiRequest("/api/profile",{method:"PUT",body:JSON.stringify(profile)}); },
+  async getSavedJobs() { return apiRequest("/api/saved-jobs"); },
+  async saveJob(jobId) { return apiRequest("/api/saved-jobs",{method:"POST",body:JSON.stringify({jobId})}); },
+  async removeSavedJob(jobId) { return apiRequest("/api/saved-jobs",{method:"DELETE",body:JSON.stringify({jobId})}); },
+  async getEmployerJobs() { return apiRequest("/api/employer/jobs"); },
+  async updateEmployerJob(jobId, action, fields={}) { return apiRequest("/api/employer/jobs",{method:"PATCH",body:JSON.stringify({jobId,action,...fields})}); },
+  async getEmployerApplications() { return apiRequest("/api/employer/applications"); },
+  async updateApplication(applicationId,status) { return apiRequest("/api/employer/applications",{method:"PATCH",body:JSON.stringify({applicationId,status})}); },
+  async getAdminSummary() { return apiRequest("/api/admin/summary"); },
+
 };
 
 export const dataService = {
