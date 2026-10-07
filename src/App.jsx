@@ -19,6 +19,8 @@ const getRouteFromPathname = (pathname) => {
       return "applications";
     case "/saved":
       return "saved";
+    case "/alerts":
+      return "alerts";
     case "/profile":
       return "profile";
     case "/employer/jobs":
@@ -66,6 +68,9 @@ function App() {
   const [providerJobs, setProviderJobs] = useState([]);
   const [employerApplications, setEmployerApplications] = useState([]);
   const [savedJobs, setSavedJobs] = useState([]);
+  const [jobAlerts, setJobAlerts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("248works.jobAlerts") || "[]"); } catch { return []; }
+  });
   const [profile, setProfile] = useState(null);
   const [adminSummary, setAdminSummary] = useState(null);
   const [session, setSession] = useState(() => authService.getSession());
@@ -139,7 +144,7 @@ function App() {
     if (!current.code) return undefined;
 
     authService.exchangeTriSendCode(current.code)
-      .then((nextSession) => {
+       .then(async (nextSession) => {
         if (!active) return;
         setSession(nextSession);
         await refreshRoleData(nextSession.user?.role);
@@ -243,6 +248,20 @@ function App() {
     } catch (error) { showToast(error.message || "Unable to update profile."); }
   };
 
+
+  const toggleJobAlert = () => {
+    if (!requireAuth("JobSeeker")) return;
+    const normalized = { query: query.trim(), category, createdAt: new Date().toISOString() };
+    const key = JSON.stringify({ query: normalized.query.toLowerCase(), category: normalized.category });
+    const exists = jobAlerts.some(a => JSON.stringify({query:a.query.toLowerCase(),category:a.category}) === key);
+    const next = exists
+      ? jobAlerts.filter(a => JSON.stringify({query:a.query.toLowerCase(),category:a.category}) !== key)
+      : [normalized, ...jobAlerts].slice(0, 10);
+    setJobAlerts(next);
+    localStorage.setItem("248works.jobAlerts", JSON.stringify(next));
+    showToast(exists ? "Job alert removed." : "Job alert created for this search.");
+  };
+
   const requireAuth = (purpose) => {
     if (session) return true;
     setAuthPurpose(purpose);
@@ -316,6 +335,7 @@ function App() {
           {session?.user?.role === "JobSeeker" && <>
             <button className={mode === "applications" ? "nav-active" : ""} onClick={() => navigate("/applications")}>Applications</button>
             <button className={mode === "saved" ? "nav-active" : ""} onClick={() => navigate("/saved")}>Saved</button>
+            <button className={mode === "alerts" ? "nav-active" : ""} onClick={() => navigate("/alerts")}>Alerts</button>
           </>}
           {session?.user?.role === "Employer" && <button className={mode === "employer-dashboard" ? "nav-active" : ""} onClick={() => navigate("/employer/jobs")}>Manage Jobs</button>}
           {session && <button className={mode === "profile" ? "nav-active" : ""} onClick={() => navigate("/profile")}>Profile</button>}
@@ -392,6 +412,9 @@ function App() {
             <select value={category} onChange={(e) => setCategory(e.target.value)}>
               {categories.map((item) => <option key={item}>{item}</option>)}
             </select>
+            <button className="secondary alert-button" onClick={toggleJobAlert}>
+              {jobAlerts.some(a => a.query.toLowerCase() === query.trim().toLowerCase() && a.category === category) ? "Alert enabled" : "Create job alert"}
+            </button>
           </div>
 
           <div className="job-grid">
@@ -490,6 +513,16 @@ function App() {
       )}
 
 
+
+      {mode === "alerts" && (
+        <main className="page">
+          <div className="page-heading"><div><div className="eyebrow">JOB SEEKER</div><h1>Job alerts.</h1><p>Save searches so you can return to the same hiring criteria quickly.</p></div></div>
+          <div className="management-list">
+            {jobAlerts.map((alert,index)=><article key={index}><div><span className="pill">{alert.category}</span><h3>{alert.query || "All Telangana jobs"}</h3><p className="muted">Search alert created {new Date(alert.createdAt).toLocaleDateString("en-IN")}</p></div><button className="secondary small" onClick={()=>{const next=jobAlerts.filter((_,i)=>i!==index);setJobAlerts(next);localStorage.setItem("248works.jobAlerts",JSON.stringify(next));}}>Remove</button></article>)}
+          </div>
+          {!jobAlerts.length && <div className="empty">No job alerts yet. Create one from Find Jobs after entering your preferred search.</div>}
+        </main>
+      )}
 
       {mode === "saved" && (
         <main className="page">
@@ -680,13 +713,7 @@ function App() {
           role={authPurpose}
           socialPending={socialPending}
           onClose={() => setAuthOpen(false)}
-          onAuthenticated={(nextSession) => {
-            authService.saveSession(nextSession);
-            setSession(nextSession);
-            setAuthOpen(false);
-            setSocialPending(false);
-            showToast("Signed in successfully. Welcome to 248 Works.");
-          }}
+          onAuthenticated={handleAuthenticated}
         />
       )}
 
