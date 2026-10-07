@@ -17,6 +17,14 @@ const getRouteFromPathname = (pathname) => {
       return "provider";
     case "/applications":
       return "applications";
+    case "/saved":
+      return "saved";
+    case "/profile":
+      return "profile";
+    case "/employer/jobs":
+      return "employer-dashboard";
+    case "/admin":
+      return "admin";
     case "/privacy":
       return "privacy";
     case "/grievance":
@@ -56,6 +64,10 @@ function App() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [toast, setToast] = useState("");
   const [providerJobs, setProviderJobs] = useState([]);
+  const [employerApplications, setEmployerApplications] = useState([]);
+  const [savedJobs, setSavedJobs] = useState([]);
+  const [profile, setProfile] = useState(null);
+  const [adminSummary, setAdminSummary] = useState(null);
   const [session, setSession] = useState(() => authService.getSession());
   const [authOpen, setAuthOpen] = useState(false);
   const [authPurpose, setAuthPurpose] = useState("JobSeeker");
@@ -101,8 +113,14 @@ function App() {
   }, [selectedJob]);
 
   useEffect(() => {
-    dataService.getApplications()
-      .then(setApplications)
+    Promise.all([
+      dataService.getApplications(),
+      authService.getSession() ? dataService.getProfile().catch(() => null) : Promise.resolve(null)
+    ])
+      .then(([apps, currentProfile]) => {
+        setApplications(apps);
+        setProfile(currentProfile);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -124,6 +142,7 @@ function App() {
       .then((nextSession) => {
         if (!active) return;
         setSession(nextSession);
+        await refreshRoleData(nextSession.user?.role);
         setSocialPending(false);
         showToast("Signed in successfully. Welcome to 248 Works.");
       })
@@ -147,6 +166,81 @@ function App() {
   const showToast = (message) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 2800);
+  };
+
+  const refreshRoleData = async (role = session?.user?.role) => {
+    if (!role) return;
+    if (role === "JobSeeker") {
+      const [apps, saved, currentProfile] = await Promise.all([
+        dataService.getApplications(),
+        dataService.getSavedJobs(),
+        dataService.getProfile()
+      ]);
+      setApplications(apps); setSavedJobs(saved); setProfile(currentProfile);
+    }
+    if (role === "Employer") {
+      const [ownedJobs, employerApps, currentProfile] = await Promise.all([
+        dataService.getEmployerJobs(),
+        dataService.getEmployerApplications(),
+        dataService.getProfile()
+      ]);
+      setProviderJobs(ownedJobs); setEmployerApplications(employerApps); setProfile(currentProfile);
+    }
+    if (role === "Admin") setAdminSummary(await dataService.getAdminSummary());
+  };
+
+  const handleAuthenticated = async (nextSession) => {
+    setSession(nextSession);
+    setAuthOpen(false);
+    setSocialPending(false);
+    await refreshRoleData(nextSession.user?.role);
+    showToast("Signed in successfully. Welcome to 248 Works.");
+  };
+
+  const logout = async () => {
+    await authService.logout();
+    setSession(null);
+    setApplications([]);
+    setSavedJobs([]);
+    setProviderJobs([]);
+    setEmployerApplications([]);
+    setProfile(null);
+    navigate("/");
+    showToast("You have been signed out.");
+  };
+
+  const saveJob = async (jobId) => {
+    if (!requireAuth("JobSeeker")) return;
+    try {
+      const exists = savedJobs.some((job) => job.id === jobId);
+      if (exists) {
+        await dataService.removeSavedJob(jobId);
+        setSavedJobs((items) => items.filter((job) => job.id !== jobId));
+        showToast("Job removed from saved jobs.");
+      } else {
+        await dataService.saveJob(jobId);
+        const job = jobs.find((item) => item.id === jobId);
+        if (job) setSavedJobs((items) => [job, ...items]);
+        showToast("Job saved.");
+      }
+    } catch (error) { showToast(error.message || "Unable to save this job."); }
+  };
+
+  const updateApplicationStatus = async (applicationId, status) => {
+    try {
+      await dataService.updateApplication(applicationId, status);
+      setEmployerApplications(await dataService.getEmployerApplications());
+      showToast("Application status updated.");
+    } catch (error) { showToast(error.message || "Unable to update application."); }
+  };
+
+  const updateProfile = async (event) => {
+    event.preventDefault();
+    try {
+      const result = await dataService.updateProfile(profile || {});
+      setProfile(result.profile);
+      showToast("Profile updated successfully.");
+    } catch (error) { showToast(error.message || "Unable to update profile."); }
   };
 
   const requireAuth = (purpose) => {
@@ -219,7 +313,13 @@ function App() {
         <nav>
           <button className={mode === "seeker" ? "nav-active" : ""} onClick={() => navigate("/emplyee/jobs")}>Find Jobs</button>
           <button className={mode === "provider" ? "nav-active" : ""} onClick={() => navigate("/employer/jobs/post")}>For Employers</button>
-          <button className={mode === "applications" ? "nav-active" : ""} onClick={() => navigate("/applications")}>Applications</button>
+          {session?.user?.role === "JobSeeker" && <>
+            <button className={mode === "applications" ? "nav-active" : ""} onClick={() => navigate("/applications")}>Applications</button>
+            <button className={mode === "saved" ? "nav-active" : ""} onClick={() => navigate("/saved")}>Saved</button>
+          </>}
+          {session?.user?.role === "Employer" && <button className={mode === "employer-dashboard" ? "nav-active" : ""} onClick={() => navigate("/employer/jobs")}>Manage Jobs</button>}
+          {session && <button className={mode === "profile" ? "nav-active" : ""} onClick={() => navigate("/profile")}>Profile</button>}
+          {session ? <button onClick={logout}>Sign out</button> : null}
         </nav>
       </header>
 
@@ -303,7 +403,10 @@ function App() {
                 <p className="muted">📍 {job.location}, Telangana &nbsp; · &nbsp; {job.type}</p>
                 <div className="salary">{job.salary}</div>
                 <p>{job.description}</p>
-                <div className="job-footer"><span>{job.vacancies} opening{job.vacancies > 1 ? "s" : ""}</span><button className="primary small" onClick={() => setSelectedJob(job)}>View Job</button></div>
+                <div className="job-footer"><span>{job.vacancies} opening{job.vacancies > 1 ? "s" : ""}</span><div className="job-actions">
+                  <button className="secondary small" onClick={() => saveJob(job.id)}>{savedJobs.some((item) => item.id === job.id) ? "Saved" : "Save"}</button>
+                  <button className="primary small" onClick={() => setSelectedJob(job)}>View Job</button>
+                </div></div>
               </article>
             ))}
           </div>
@@ -386,6 +489,88 @@ function App() {
         </main>
       )}
 
+
+
+      {mode === "saved" && (
+        <main className="page">
+          <div className="page-heading"><div><div className="eyebrow">JOB SEEKER</div><h1>Saved jobs.</h1><p>Keep interesting Telangana opportunities in one place.</p></div></div>
+          <div className="job-grid">
+            {savedJobs.map((job) => (
+              <article className="job-card" key={job.id}>
+                <div className="job-top"><span className="pill">{job.category}</span><span>{job.posted}</span></div>
+                <h3>{job.title}</h3><strong>{job.company}</strong>
+                <p className="muted">📍 {job.location}, Telangana · {job.type}</p>
+                <div className="salary">{job.salary}</div>
+                <p>{job.description}</p>
+                <div className="job-footer"><button className="secondary small" onClick={() => saveJob(job.id)}>Remove</button><button className="primary small" onClick={() => setSelectedJob(job)}>View Job</button></div>
+              </article>
+            ))}
+          </div>
+          {!savedJobs.length && <div className="empty">No saved jobs yet. Save jobs from Find Jobs to see them here.</div>}
+        </main>
+      )}
+
+      {mode === "profile" && profile && (
+        <main className="page">
+          <div className="page-heading"><div><div className="eyebrow">{session?.user?.role === "Employer" ? "EMPLOYER PROFILE" : "JOB SEEKER PROFILE"}</div><h1>Your profile.</h1><p>Keep your information current so the right people can find you.</p></div></div>
+          <form className="form-card profile-card" onSubmit={updateProfile}>
+            <div className="two-col">
+              <label>Full name<input value={profile.name || ""} onChange={e=>setProfile({...profile,name:e.target.value})} /></label>
+              <label>Phone<input value={profile.phone || ""} onChange={e=>setProfile({...profile,phone:e.target.value})} /></label>
+            </div>
+            <div className="two-col">
+              <label>Location<input value={profile.location || ""} onChange={e=>setProfile({...profile,location:e.target.value})} placeholder="Hyderabad" /></label>
+              <label>Headline<input value={profile.headline || ""} onChange={e=>setProfile({...profile,headline:e.target.value})} placeholder="e.g. Retail Sales Professional" /></label>
+            </div>
+            {session?.user?.role === "JobSeeker" ? <>
+              <label>Skills<input value={(profile.skills || []).join(", ")} onChange={e=>setProfile({...profile,skills:e.target.value.split(",").map(v=>v.trim()).filter(Boolean)})} placeholder="Sales, Customer service, POS" /></label>
+              <div className="two-col">
+                <label>Experience<input value={profile.experience || ""} onChange={e=>setProfile({...profile,experience:e.target.value})} placeholder="2 years" /></label>
+                <label>Education<input value={profile.education || ""} onChange={e=>setProfile({...profile,education:e.target.value})} placeholder="Intermediate / Degree" /></label>
+              </div>
+              <label>Resume link<input value={profile.resumeUrl || ""} onChange={e=>setProfile({...profile,resumeUrl:e.target.value})} placeholder="https://..." /></label>
+            </> : <>
+              <div className="two-col">
+                <label>Business name<input value={profile.company || ""} onChange={e=>setProfile({...profile,company:e.target.value})} /></label>
+                <label>Business type<input value={profile.businessType || ""} onChange={e=>setProfile({...profile,businessType:e.target.value})} placeholder="Retail, Restaurant, Services..." /></label>
+              </div>
+            </>}
+            <label>About<input value={profile.bio || ""} onChange={e=>setProfile({...profile,bio:e.target.value})} placeholder="A short introduction" /></label>
+            <button className="primary" type="submit">Save Profile</button>
+          </form>
+        </main>
+      )}
+
+      {mode === "employer-dashboard" && (
+        <main className="page">
+          <div className="page-heading"><div><div className="eyebrow">EMPLOYER DASHBOARD</div><h1>Manage hiring.</h1><p>Manage job status and move applicants through your hiring pipeline.</p></div><button className="primary" onClick={()=>navigate("/employer/jobs/post")}>Post a Job</button></div>
+          <div className="dashboard-stats">
+            <div><strong>{providerJobs.length}</strong><span>Total jobs</span></div>
+            <div><strong>{providerJobs.filter(j=>j.isActive !== false).length}</strong><span>Open jobs</span></div>
+            <div><strong>{employerApplications.length}</strong><span>Applications</span></div>
+          </div>
+          <section className="dashboard-section"><h2>Your jobs</h2>
+            <div className="management-list">
+              {providerJobs.map(job=><article key={job.id}><div><span className="pill">{job.status || (job.isActive === false ? "Closed" : "Open")}</span><h3>{job.title}</h3><p className="muted">{job.location} · {job.salary} · {job.vacancies} opening(s)</p></div><div className="management-actions"><button className="secondary small" onClick={async()=>{const next=await dataService.updateEmployerJob(job.id,job.isActive===false?"reopen":"close");setProviderJobs(providerJobs.map(x=>x.id===job.id?next:x));}}> {job.isActive===false?"Reopen":"Close"} </button></div></article>)}
+            </div>
+            {!providerJobs.length && <div className="empty">No jobs yet. Publish your first Telangana opening.</div>}
+          </section>
+          <section className="dashboard-section"><h2>Applicants</h2>
+            <div className="management-list">
+              {employerApplications.map(app=><article key={app.id}><div><span className="pill">{app.status}</span><h3>{app.candidateName}</h3><p className="muted">{app.job?.title} · Applied {app.appliedOn}</p></div><select value={app.status} onChange={e=>updateApplicationStatus(app.id,e.target.value)}><option>Applied</option><option>Viewed</option><option>Shortlisted</option><option>Interview</option><option>Selected</option><option>Rejected</option></select></article>)}
+            </div>
+            {!employerApplications.length && <div className="empty">No applications have arrived yet.</div>}
+          </section>
+        </main>
+      )}
+
+      {mode === "admin" && adminSummary && (
+        <main className="page"><div className="page-heading"><div><div className="eyebrow">ADMIN</div><h1>Platform overview.</h1><p>Core 248 Works operating metrics.</p></div></div>
+          <div className="dashboard-stats">
+            <div><strong>{adminSummary.users}</strong><span>Users</span></div><div><strong>{adminSummary.jobSeekers}</strong><span>Job seekers</span></div><div><strong>{adminSummary.employers}</strong><span>Employers</span></div><div><strong>{adminSummary.openJobs}</strong><span>Open jobs</span></div><div><strong>{adminSummary.applications}</strong><span>Applications</span></div>
+          </div>
+        </main>
+      )}
 
       {mode === "privacy" && (
         <main className="page legal-page">
