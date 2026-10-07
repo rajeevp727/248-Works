@@ -3,7 +3,7 @@ import { categories, TELANGANA_LOCATIONS, TELANGANA_STATE } from "./data/mockDat
 import { dataService } from "./services/dataService";
 import { authService } from "./services/authService";
 import AuthModal from "./components/AuthModal";
-import logo from "./assets/248-works-logo.png";
+import logo from "./assets/248-works-logo.svg";
 
 const brand = "248 Works";
 
