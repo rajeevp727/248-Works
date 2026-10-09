@@ -44,3 +44,7 @@
 - Do not use `maxLength` on the local phone field because it prevents pasting an international number such as `+91 9876543210` before normalization.
 - Accept typing or pasting digits with or without `+91`; normalize to one country code in stored profile data while showing only the 10-digit local number in the editable input.
 - Keep a stable flex layout for the fixed country-code prefix and editable input in both light and dark themes.
+
+
+## Auth cancel button dark mode (2026-10-09)
+- The active-session confirmation Cancel button receives an explicit class and dark-theme styling so its background, text, border, hover, and keyboard focus remain visible against the modal.
