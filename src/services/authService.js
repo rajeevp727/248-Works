@@ -151,6 +151,20 @@ export const authService = {
     return body;
   },
 
+  async validateSession() {
+    requireTriSend();
+    const session = this.getSession();
+    if (!session?.token) throw new Error("No access token.");
+    const response = await fetch(TRISEND_AUTH_URL + "/auth/me", {
+      headers: { Authorization: "Bearer " + session.token }
+    });
+    if (!response.ok) throw new Error("Session validation failed.");
+    const body = await response.json().catch(() => ({}));
+    const nextSession = { ...session, user: body.user || body };
+    this.saveSession(nextSession);
+    return nextSession;
+  },
+
   async refresh() {
     requireTriSend();
     const session = this.getSession();
