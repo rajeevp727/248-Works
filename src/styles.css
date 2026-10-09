@@ -940,3 +940,29 @@ body{min-height:100vh}
 .profile-avatar-image{width:76px;height:76px;object-fit:cover;border-radius:24px;border:2px solid var(--border,#e5e7eb)}
 .profile-photo-action{font-size:11px;font-weight:800;color:var(--muted-text,#667085)}
 .profile-avatar-upload:focus-within{outline:2px solid #84cc16;outline-offset:4px;border-radius:12px}
+
+
+/* Dark-mode profile form contrast: keep labels, hints, fields and dividers readable. */
+.theme-dark .profile-form{color:var(--text)}
+.theme-dark .profile-form label{color:#e5eaf2}
+.theme-dark .profile-form .field-hint{color:#b6c0d0}
+.theme-dark .profile-form input,
+.theme-dark .profile-form textarea,
+.theme-dark .profile-form select{background:#111620;color:#edf2f7;border-color:#465164}
+.theme-dark .profile-form input::placeholder,
+.theme-dark .profile-form textarea::placeholder{color:#8e9bad;opacity:1}
+.theme-dark .profile-form input:focus,
+.theme-dark .profile-form textarea:focus,
+.theme-dark .profile-form select:focus{border-color:#a3e635;box-shadow:0 0 0 3px rgba(163,230,53,.14);outline:none}
+.theme-dark .profile-form .form-section-heading{border-bottom-color:#3b4555}
+.theme-dark .profile-form-footer{border-top-color:#3b4555}
+.theme-dark .profile-form-footer .field-hint{color:#b6c0d0}
+.theme-dark .profile-form .required-mark{color:#fda4af}
+.theme-dark .phone-country-code{color:#edf2f7;background:#222b39;border-color:#465164}
+
+
+/* Phone input: country code is fixed; the local number remains a normal editable field. */
+.phone-input-group{display:flex;align-items:stretch;gap:0;width:100%;min-width:0}
+.phone-input-group .phone-country-code{display:flex;align-items:center;justify-content:center;flex:0 0 auto;padding:0 13px;border:1px solid #d7dee8;border-right:0;border-radius:9px 0 0 9px;background:#f7f9fc;color:#344054;font-size:14px;font-weight:700}
+.phone-input-group input[type=tel]{flex:1 1 auto;width:1%;min-width:0;box-sizing:border-box;border-radius:0 9px 9px 0}
+.theme-dark .phone-input-group .phone-country-code{background:#222b39;color:#edf2f7;border-color:#465164}
