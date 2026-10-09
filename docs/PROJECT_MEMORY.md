@@ -33,3 +33,8 @@
 - Render India country code (+91) as a separate, non-editable prefix beside the phone input; users can edit or clear the 10-digit local number freely.
 - Normalize stored values to a single +91 prefix and store an empty string when the local number is cleared.
 - Regression-check empty, partial, complete, and pasted country-prefixed numbers.
+
+
+## Dark-mode profile form contrast (2026-10-09)
+- Explicitly set readable light text for profile labels and hints, dark input surfaces with visible borders, readable placeholders, visible focus rings, and muted section dividers when `.theme-dark` is active.
+- Preserve existing layout and light-mode styling.
