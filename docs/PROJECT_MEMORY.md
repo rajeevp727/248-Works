@@ -27,3 +27,9 @@
 - Added optional social-claim extraction to the SWA principal, safe fill-only-missing logic for existing users, and profile API support for profile photo field.
 - Added frontend session-to-profile prefill for name, phone, location, headline, bio, photo, skills, experience and education. Existing non-empty saved values take precedence.
 - Validate via frontend build, API syntax/build checks, PR checks, and deployment workflow before reporting completion.
+
+
+## Phone input fix (2026-10-09)
+- Render India country code (+91) as a separate, non-editable prefix beside the phone input; users can edit or clear the 10-digit local number freely.
+- Normalize stored values to a single +91 prefix and store an empty string when the local number is cleared.
+- Regression-check empty, partial, complete, and pasted country-prefixed numbers.
