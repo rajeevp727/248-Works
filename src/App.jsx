@@ -26,7 +26,7 @@ const readJobAlerts = (currentSession) => {
 const getProfileCompletion = (profile, role) => {
   const fields = role === "Employer"
     ? [profile?.name, profile?.phone, profile?.location, profile?.company, profile?.businessType, profile?.headline, profile?.bio]
-    : [profile?.name, profile?.phone, profile?.location, profile?.headline, profile?.skills?.length, profile?.experience, profile?.education, profile?.resumeUrl];
+    : [profile?.name, profile?.phone, profile?.location, profile?.headline, profile?.skills, profile?.experience, profile?.education, profile?.resumeUrl];
   const complete = fields.filter((value) => Array.isArray(value) ? value.length > 0 : String(value ?? "").trim().length > 0).length;
   return Math.round((complete / fields.length) * 100);
 };
@@ -641,7 +641,7 @@ function App() {
                 <p className="muted">Created {alert.createdAt && !Number.isNaN(new Date(alert.createdAt).getTime()) ? new Date(alert.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "recently"}</p>
                 <div className="alert-card-actions">
                   <button className="primary small" onClick={() => { setQuery(alert.query || ""); setCategory(alert.category || "All"); navigate("/emplyee/jobs"); }}>View matching jobs</button>
-                  <button className="secondary small" onClick={() => { const next = jobAlerts.filter((_, i) => i !== index); setJobAlerts(next); localStorage.setItem(alertsStorageKey(session), JSON.stringify(next)); showToast("Job alert removed."); }}>Remove</button>
+                  <button className="secondary small" onClick={() => { const next = jobAlerts.filter((item) => item !== alert); setJobAlerts(next); localStorage.setItem(alertsStorageKey(session), JSON.stringify(next)); showToast("Job alert removed."); }}>Remove</button>
                 </div>
               </article>
             ))}
