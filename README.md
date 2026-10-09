@@ -10,6 +10,8 @@ React + Vite MVP for a local workforce marketplace.
 - Job providers: ₹100 joining-fee concept, job posting and provider dashboard.
 - Responsive mobile-first interface.
 - Swappable data service so the UI can move from mock data to the 248 Works API without rewriting the screens.
+- Account workspace: editable role-aware profiles, application tracking with status filters, searchable saved jobs, and saved job-search alerts.
+- Job alerts currently store search preferences per signed-in account in that browser profile; outbound email and push notifications are not enabled.
 
 ## Azure target
 
