@@ -213,7 +213,16 @@ function swaPrincipal(request) {
       (details.includes("@") ? details : "")
     );
     if (!principal.userId || !email || !["google", "aad"].includes(provider)) return null;
-    return { provider, providerUserId: String(principal.userId), email, name: claim(["name", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"]) || details };
+    const firstClaim = (types) => claim(types);
+    const picture = firstClaim(["picture", "avatar", "photo", "photo_url", "image"]);
+    const phone = firstClaim(["phone", "phone_number", "mobilephone", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/mobilephone", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/homephone"]);
+    const location = firstClaim(["address", "city", "locality", "location", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/streetaddress"]);
+    const bio = firstClaim(["about", "bio", "description"]);
+    return {
+      provider, providerUserId: String(principal.userId), email,
+      name: claim(["name", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"]) || details,
+      phone, location, bio, picture
+    };
   } catch {
     return null;
   }
@@ -383,7 +392,11 @@ app.http("auth-swa-session", {
           id: userId(principal.email), type: "user", ownerId: userId(principal.email),
           email: principal.email, normalizedEmail: principal.email, role,
           name: String(body.name || principal.name || "").trim(),
-          phone: null, location: null, state: STATE,
+          phone: String(body.phone || principal.phone || "").trim() || null,
+          location: String(body.location || principal.location || "").trim() || null,
+          bio: String(body.bio || principal.bio || "").trim() || "",
+          profileImageBase64: "",
+          state: STATE,
           isEmailVerified: true, authProvider: principal.provider,
           providerUserId: principal.providerUserId, createdAt: iso(), updatedAt: iso()
         };
@@ -393,6 +406,11 @@ app.http("auth-swa-session", {
         user.authProvider = user.authProvider || principal.provider;
         user.providerUserId = user.providerUserId || principal.providerUserId;
         if (!user.name && principal.name) user.name = principal.name;
+        // Social claims only fill empty profile fields; never overwrite user edits.
+        if (!user.phone && principal.phone) user.phone = principal.phone;
+        if (!user.location && principal.location) user.location = principal.location;
+        if (!user.bio && principal.bio) user.bio = principal.bio;
+        if (!user.profileImageBase64 && principal.picture) user.profileImageBase64 = principal.picture;
         if (user.role !== "Admin") user.role = role;
         user.updatedAt = iso();
       }
@@ -558,6 +576,7 @@ app.http("profile", {
           id: user.id, email: user.email, role: user.role, name: user.name || "",
           phone: user.phone || "", location: user.location || "", state: user.state || STATE,
           headline: user.headline || "", bio: user.bio || "",
+          profileImageBase64: user.profileImageBase64 || "",
           skills: Array.isArray(user.skills) ? user.skills : [],
           experience: user.experience || "", education: user.education || "",
           resumeUrl: user.resumeUrl || "", company: user.company || "",
@@ -570,6 +589,7 @@ app.http("profile", {
       user.location = String(body.location ?? user.location ?? "").trim().slice(0, 100);
       user.headline = String(body.headline ?? user.headline ?? "").trim().slice(0, 180);
       user.bio = String(body.bio ?? user.bio ?? "").trim().slice(0, 2000);
+      user.profileImageBase64 = String(body.profileImageBase64 ?? user.profileImageBase64 ?? "").trim().slice(0, 2800000);
       user.skills = Array.isArray(body.skills) ? body.skills.map(v => String(v).trim()).filter(Boolean).slice(0, 30) : (user.skills || []);
       user.experience = String(body.experience ?? user.experience ?? "").trim().slice(0, 120);
       user.education = String(body.education ?? user.education ?? "").trim().slice(0, 180);
@@ -580,7 +600,7 @@ app.http("profile", {
       await upsert(user);
       return reply(200, { message: "Profile updated.", profile: {
         id:user.id,email:user.email,role:user.role,name:user.name,phone:user.phone,location:user.location,state:user.state,
-        headline:user.headline,bio:user.bio,skills:user.skills,experience:user.experience,education:user.education,
+        headline:user.headline,bio:user.bio,profileImageBase64:user.profileImageBase64 || "",skills:user.skills,experience:user.experience,education:user.education,
         resumeUrl:user.resumeUrl,company:user.company,businessType:user.businessType
       }});
     } catch (error) {
