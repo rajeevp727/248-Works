@@ -10,27 +10,39 @@ on:
       - main
 
 jobs:
-  build_and_deploy_job:
-    # PRs are validation-only. A merge to main triggers the real deployment.
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+  validate_pull_request:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
     runs-on: ubuntu-latest
-    name: Build and Deploy Job
+    name: Validate frontend build
     env:
-      # Public TriSend base URL is required at Vite build time; it is not a secret.
+      VITE_TRISEND_AUTH_URL: https://auth.trisend.rajeevstech.in
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Build frontend
+        run: npm run build
+
+  deploy_production:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    name: Build and deploy production
+    env:
       VITE_TRISEND_AUTH_URL: https://auth.trisend.rajeevstech.in
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
           lfs: false
-
-      - name: Build And Deploy
-        id: builddeploy
+      - name: Build and deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AMBITIOUS_SEA_02F6B5710 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: ${{ github.event_name == 'push' && 'upload' || 'build' }}
+          action: upload
           app_location: "/"
           api_location: "api"
           output_location: "dist"
@@ -38,11 +50,10 @@ jobs:
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
-    name: Close Pull Request Job
+    name: Close pull request environment
     steps:
-      - name: Close Pull Request
-        id: closepullrequest
+      - name: Close pull request
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AMBITIOUS_SEA_02F6B5710 }}
-          action: "close"
+          action: close
