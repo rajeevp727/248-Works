@@ -985,3 +985,22 @@ body{min-height:100vh}
   outline:2px solid #a3e635;
   outline-offset:2px;
 }
+
+
+/* Profile completion card and close controls must remain legible in dark mode. */
+.theme-dark .profile-completion{
+  background:#171c26;
+  color:#edf2f7;
+  border-color:#465164;
+}
+.theme-dark .profile-completion strong{color:#edf2f7}
+.theme-dark .profile-completion small{color:#b6c0d0}
+.theme-dark .completion-ring{color:#d9f99d}
+.theme-dark .completion-ring span{color:#edf2f7}
+.theme-dark .close{
+  background:#293246;
+  color:#edf2f7;
+  border:1px solid #465164;
+}
+.theme-dark .close:hover{background:#37445a;border-color:#718096;color:#fff}
+.theme-dark .close:focus-visible{outline:2px solid #a3e635;outline-offset:2px}

@@ -48,3 +48,8 @@
 
 ## Auth cancel button dark mode (2026-10-09)
 - The active-session confirmation Cancel button receives an explicit class and dark-theme styling so its background, text, border, hover, and keyboard focus remain visible against the modal.
+
+
+## Profile completion and close button dark mode (2026-10-09)
+- Give the profile completion card explicit dark surface, readable text and hint colors, and a legible progress-ring label when dark theme is active.
+- Style modal close controls for dark background, readable icon, hover and keyboard focus states without changing light mode.
