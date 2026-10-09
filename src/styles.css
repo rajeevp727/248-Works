@@ -1004,3 +1004,19 @@ body{min-height:100vh}
 }
 .theme-dark .close:hover{background:#37445a;border-color:#718096;color:#fff}
 .theme-dark .close:focus-visible{outline:2px solid #a3e635;outline-offset:2px}
+
+
+/* Numeric phone field: remove browser spinners and keep the country code/input aligned. */
+.phone-input-group input[type=number]{
+  appearance:textfield;
+  -moz-appearance:textfield;
+  font-variant-numeric:tabular-nums;
+  border-radius:0 9px 9px 0;
+}
+.phone-input-group input[type=number]::-webkit-inner-spin-button,
+.phone-input-group input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.phone-input-group:focus-within .phone-country-code{border-color:#84cc16}
+.phone-input-group:focus-within input[type=number]{position:relative;z-index:1}
+.theme-dark .phone-input-group input[type=number]{background:#111620;color:#edf2f7;border-color:#465164}
+.profile-completion{min-width:0;max-width:100%}
+.completion-ring{flex-shrink:0}
