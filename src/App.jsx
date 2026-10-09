@@ -26,7 +26,7 @@ const readJobAlerts = (currentSession) => {
 const getProfileCompletion = (profile, role) => {
   const fields = role === "Employer"
     ? [profile?.name, profile?.phone, profile?.location, profile?.company, profile?.businessType, profile?.headline, profile?.bio]
-    : [profile?.name, profile?.phone, profile?.location, profile?.headline, profile?.skills, profile?.experience, profile?.education, profile?.resumeUrl];
+    : [profile?.name, profile?.phone, profile?.location, profile?.headline, profile?.skills, profile?.experience, profile?.education];
   const complete = fields.filter((value) => Array.isArray(value) ? value.length > 0 : String(value ?? "").trim().length > 0).length;
   return Math.round((complete / fields.length) * 100);
 };
@@ -697,7 +697,7 @@ function App() {
           <div className="profile-layout">
             <aside className="profile-aside">
               <div className="profile-identity">
-                <div className="profile-avatar" aria-hidden="true">{String(profile?.name || session?.user?.name || session?.user?.email || "U").trim().slice(0,1).toUpperCase()}</div>
+                <label className="profile-avatar-upload" title="Upload or change profile photo">{profile?.profileImageBase64 ? <img className="profile-avatar-image" src={profile.profileImageBase64} alt="Profile" /> : <span className="profile-avatar" aria-hidden="true">{String(profile?.name || session?.user?.name || session?.user?.email || "U").trim().slice(0,1).toUpperCase()}</span>}<span className="profile-photo-action">Edit photo</span><input type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload profile photo" onChange={event => { const file = event.target.files?.[0]; if (!file) return; if (file.size > 2*1024*1024) { showToast("Choose an image smaller than 2 MB."); event.target.value = ""; return; } if (!["image/jpeg","image/png","image/webp"].includes(file.type)) { showToast("Use a JPG, PNG or WebP image."); event.target.value = ""; return; } const reader = new FileReader(); reader.onload = () => setProfile(current => ({ ...(current || {}), profileImageBase64: String(reader.result) })); reader.onerror = () => showToast("Unable to read this image."); reader.readAsDataURL(file); }} /></label>
                 <h2>{profile?.name || session?.user?.name || "Your name"}</h2>
                 <p>{profile?.headline || (session?.user?.role === "Employer" ? "Employer account" : "Job seeker")}</p>
                 <span className="role-badge">{session?.user?.role === "Employer" ? "Employer" : "Job seeker"}</span>
@@ -709,7 +709,7 @@ function App() {
               <div className="form-section-heading"><div><h2>Basic information</h2><p>These details help identify and contact you.</p></div><span className="form-section-index">01</span></div>
               <div className="two-col">
                 <label>Full name <span className="required-mark" aria-hidden="true">*</span><input required maxLength="120" autoComplete="name" value={profile?.name || ""} onChange={event => setProfile({ ...(profile || {}), name: event.target.value })} placeholder="Your full name" /></label>
-                <label>Phone number<input type="tel" maxLength="30" autoComplete="tel" value={profile?.phone || ""} onChange={event => setProfile({ ...(profile || {}), phone: event.target.value })} placeholder="+91 98765 43210" /></label>
+                <label>Phone number <span className="field-hint">India (+91) · 10 digits</span><input type="tel" inputMode="numeric" autoComplete="tel-national" maxLength="15" value={(() => { const digits = String(profile?.phone || "").replace(/^\\+91\\s?/, "").replace(/\\D/g, "").slice(0, 10); return "+91 " + (digits.length > 5 ? digits.slice(0, 5) + " " + digits.slice(5) : digits); })()} onChange={event => { const digits = event.target.value.replace(/^\\+91\\s?/, "").replace(/\\D/g, "").slice(0, 10); setProfile({ ...(profile || {}), phone: "+91 " + (digits.length > 5 ? digits.slice(0, 5) + " " + digits.slice(5) : digits) }); }} placeholder="+91 98765 43210" /></label>
               </div>
               <div className="two-col">
                 <label>Location<input maxLength="100" autoComplete="address-level2" value={profile?.location || ""} onChange={event => setProfile({ ...(profile || {}), location: event.target.value })} placeholder="Hyderabad, Telangana" /></label>
@@ -722,7 +722,7 @@ function App() {
                   <label>Experience<input maxLength="120" value={profile?.experience || ""} onChange={event => setProfile({ ...(profile || {}), experience: event.target.value })} placeholder="e.g. 2 years / Fresher" /></label>
                   <label>Education<input maxLength="180" value={profile?.education || ""} onChange={event => setProfile({ ...(profile || {}), education: event.target.value })} placeholder="e.g. Intermediate, Degree" /></label>
                 </div>
-                <label>Resume URL <span className="field-hint">Optional · use a shareable HTTPS link</span><input type="url" maxLength="500" value={profile?.resumeUrl || ""} onChange={event => setProfile({ ...(profile || {}), resumeUrl: event.target.value })} placeholder="https://..." /></label>
+                
               </> : <>
                 <div className="form-section-heading profile-section-spaced"><div><h2>Business details</h2><p>Give candidates useful context about your organisation.</p></div><span className="form-section-index">02</span></div>
                 <div className="two-col">

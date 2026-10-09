@@ -934,3 +934,9 @@ body{min-height:100vh}
 .logout-confirm-action{background:#b42318!important}
 .theme-dark .logout-confirm-icon{background:#3a2022;color:#fda29b}
 @media(max-width:600px){.site-footer{align-items:flex-start;flex-direction:column;gap:9px;padding:20px}.theme-settings{align-items:stretch;flex-direction:column}.theme-switch{width:100%;box-sizing:border-box}.theme-option{flex:1}.logout-confirm-actions{flex-direction:column-reverse}.logout-confirm-actions button{width:100%}}
+
+.profile-avatar-upload{display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;position:relative}
+.profile-avatar-upload input[type=file]{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.profile-avatar-image{width:76px;height:76px;object-fit:cover;border-radius:24px;border:2px solid var(--border,#e5e7eb)}
+.profile-photo-action{font-size:11px;font-weight:800;color:var(--muted-text,#667085)}
+.profile-avatar-upload:focus-within{outline:2px solid #84cc16;outline-offset:4px;border-radius:12px}

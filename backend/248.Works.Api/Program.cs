@@ -26,12 +26,11 @@ builder.Services.Add248WorksMigrations();
 
 var app = builder.Build();
 
-if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
+// Apply idempotent migrations on startup/restart; completed IDs are tracked by MigrationRunner.
+using (var migrationScope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
-    var runner = scope.ServiceProvider.GetRequiredService<MigrationRunner>();
+    var runner = migrationScope.ServiceProvider.GetRequiredService<MigrationRunner>();
     await runner.RunAsync();
-    return;
 }
 
 if (app.Environment.IsDevelopment())
