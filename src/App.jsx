@@ -149,15 +149,43 @@ function App() {
   }, [selectedJob]);
 
   useEffect(() => {
-    Promise.all([
-      dataService.getApplications(),
-      authService.getSession() ? dataService.getProfile().catch(() => null) : Promise.resolve(null)
-    ])
-      .then(([apps, currentProfile]) => {
-        setApplications(apps);
-        setProfile(currentProfile);
-      })
-      .finally(() => setLoading(false));
+    let active = true;
+    const initialize = async () => {
+      let currentSession = authService.getSession();
+      // Restore the existing login before protected API calls. Access tokens are short-lived;
+      // refresh tokens preserve the session across reloads and deployments.
+      if (currentSession?.refreshToken) {
+        try {
+          currentSession = await authService.refresh();
+          if (active) setSession(currentSession);
+        } catch {
+          currentSession = authService.getSession();
+          if (active) setSession(null);
+        }
+      } else if (currentSession?.token) {
+        try {
+          currentSession = await authService.validateSession();
+          if (active) setSession(currentSession);
+        } catch {
+          currentSession = null;
+          if (active) setSession(null);
+        }
+      }
+      try {
+        const [apps, currentProfile] = await Promise.all([
+          dataService.getApplications(),
+          currentSession ? dataService.getProfile().catch(() => null) : Promise.resolve(null)
+        ]);
+        if (active) {
+          setApplications(apps);
+          setProfile(currentProfile);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    initialize().catch(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
