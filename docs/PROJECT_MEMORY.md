@@ -53,3 +53,9 @@
 ## Profile completion and close button dark mode (2026-10-09)
 - Give the profile completion card explicit dark surface, readable text and hint colors, and a legible progress-ring label when dark theme is active.
 - Style modal close controls for dark background, readable icon, hover and keyboard focus states without changing light mode.
+
+
+## Phone input numeric UX fix (2026-10-09)
+- Use `type="number"`, numeric input mode, and a maximum of 10 local digits while keeping +91 in a separate fixed prefix.
+- Normalize pasted values with or without country code and remove native number spinners for a cleaner aligned input.
+- Profile completion card should size responsively without overflowing the profile heading area.
