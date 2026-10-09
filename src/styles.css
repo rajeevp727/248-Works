@@ -959,3 +959,10 @@ body{min-height:100vh}
 .theme-dark .profile-form-footer .field-hint{color:#b6c0d0}
 .theme-dark .profile-form .required-mark{color:#fda4af}
 .theme-dark .phone-country-code{color:#edf2f7;background:#222b39;border-color:#465164}
+
+
+/* Phone input: country code is fixed; the local number remains a normal editable field. */
+.phone-input-group{display:flex;align-items:stretch;gap:0;width:100%;min-width:0}
+.phone-input-group .phone-country-code{display:flex;align-items:center;justify-content:center;flex:0 0 auto;padding:0 13px;border:1px solid #d7dee8;border-right:0;border-radius:9px 0 0 9px;background:#f7f9fc;color:#344054;font-size:14px;font-weight:700}
+.phone-input-group input[type=tel]{flex:1 1 auto;width:1%;min-width:0;box-sizing:border-box;border-radius:0 9px 9px 0}
+.theme-dark .phone-input-group .phone-country-code{background:#222b39;color:#edf2f7;border-color:#465164}
