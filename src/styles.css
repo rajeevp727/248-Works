@@ -966,3 +966,22 @@ body{min-height:100vh}
 .phone-input-group .phone-country-code{display:flex;align-items:center;justify-content:center;flex:0 0 auto;padding:0 13px;border:1px solid #d7dee8;border-right:0;border-radius:9px 0 0 9px;background:#f7f9fc;color:#344054;font-size:14px;font-weight:700}
 .phone-input-group input[type=tel]{flex:1 1 auto;width:1%;min-width:0;box-sizing:border-box;border-radius:0 9px 9px 0}
 .theme-dark .phone-input-group .phone-country-code{background:#222b39;color:#edf2f7;border-color:#465164}
+
+
+/* Keep secondary/cancel actions readable in dark mode, including the session warning modal. */
+.theme-dark .auth-modal .auth-cancel-button,
+.theme-dark .auth-modal .secondary{
+  background:#222b39;
+  color:#edf2f7;
+  border:1px solid #465164;
+}
+.theme-dark .auth-modal .auth-cancel-button:hover,
+.theme-dark .auth-modal .secondary:hover{
+  background:#2d394b;
+  border-color:#65748a;
+}
+.theme-dark .auth-modal .auth-cancel-button:focus-visible,
+.theme-dark .auth-modal .secondary:focus-visible{
+  outline:2px solid #a3e635;
+  outline-offset:2px;
+}
