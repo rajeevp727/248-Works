@@ -23,6 +23,33 @@ const readJobAlerts = (currentSession) => {
   }
 };
 
+const prefillProfileFromSession = (profile, user) => {
+  const current = profile || {};
+  const source = user || {};
+  const pick = (...values) => values.map(value => typeof value === "string" ? value.trim() : value).find(value => value !== undefined && value !== null && value !== "");
+  const updates = {
+    name: pick(current.name, source.name, source.displayName, source.fullName),
+    phone: pick(current.phone, source.phone, source.phoneNumber, source.mobilePhone),
+    location: pick(current.location, source.location, source.address, source.city),
+    headline: pick(current.headline, source.headline, source.jobTitle, source.title),
+    bio: pick(current.bio, source.bio, source.about, source.description),
+    profileImageBase64: pick(current.profileImageBase64, source.profileImageBase64, source.picture, source.photoURL, source.avatarUrl, source.avatar),
+    skills: Array.isArray(current.skills) && current.skills.length ? current.skills : (Array.isArray(source.skills) ? source.skills : current.skills),
+    experience: pick(current.experience, source.experience),
+    education: pick(current.education, source.education)
+  };
+  const next = { ...current };
+  let changed = false;
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined && value !== null && value !== "" &&
+        (next[key] === undefined || next[key] === null || next[key] === "" || (Array.isArray(next[key]) && next[key].length === 0))) {
+      next[key] = value;
+      changed = true;
+    }
+  }
+  return { profile: next, changed };
+};
+
 const getProfileCompletion = (profile, role) => {
   const fields = role === "Employer"
     ? [profile?.name, profile?.phone, profile?.location, profile?.company, profile?.businessType, profile?.headline, profile?.bio]
@@ -206,7 +233,7 @@ function App() {
        .then(async (nextSession) => {
         if (!active) return;
         setSession(nextSession);
-        await refreshRoleData(nextSession.user?.role);
+        await refreshRoleData(nextSession.user?.role, nextSession);
         setSocialPending(false);
         showToast("Signed in successfully. Welcome to 248 Works.");
       })
@@ -233,13 +260,22 @@ function App() {
     window.setTimeout(() => setToast(""), 2800);
   };
 
-  const refreshRoleData = async (role = session?.user?.role) => {
+  const refreshRoleData = async (role = session?.user?.role, authSession = authService.getSession()) => {
     if (!role) return;
+    const loadAndPrefillProfile = async () => {
+      const savedProfile = await dataService.getProfile();
+      const { profile: prefetchedProfile, changed } = prefillProfileFromSession(savedProfile, authSession?.user);
+      if (changed) {
+        const result = await dataService.updateProfile(prefetchedProfile);
+        return result.profile || prefetchedProfile;
+      }
+      return savedProfile;
+    };
     if (role === "JobSeeker") {
       const [apps, saved, currentProfile] = await Promise.all([
         dataService.getApplications(),
         dataService.getSavedJobs(),
-        dataService.getProfile()
+        loadAndPrefillProfile()
       ]);
       setApplications(apps); setSavedJobs(saved); setProfile(currentProfile);
     }
@@ -247,7 +283,7 @@ function App() {
       const [ownedJobs, employerApps, currentProfile] = await Promise.all([
         dataService.getEmployerJobs(),
         dataService.getEmployerApplications(),
-        dataService.getProfile()
+        loadAndPrefillProfile()
       ]);
       setProviderJobs(ownedJobs); setEmployerApplications(employerApps); setProfile(currentProfile);
     }
