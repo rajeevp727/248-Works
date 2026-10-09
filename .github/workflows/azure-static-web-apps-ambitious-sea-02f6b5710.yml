@@ -4,10 +4,18 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["PR Auto Merge"]
+    types: [completed]
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
   validate_pull_request:
@@ -27,7 +35,11 @@ jobs:
         run: npm run build
 
   deploy_production:
-    if: github.event_name == 'push'
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     name: Build and deploy production
     env:
@@ -35,6 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           submodules: true
           lfs: false
       - name: Build and deploy to Azure Static Web Apps
