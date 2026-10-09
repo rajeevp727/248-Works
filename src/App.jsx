@@ -76,6 +76,8 @@ const formatInrInput = (value) => {
 function App() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState(() => getRouteFromPathname(window.location.pathname));
+  const [theme, setTheme] = useState(() => { try { return localStorage.getItem("248works.theme") === "dark" ? "dark" : "light"; } catch { return "light"; } });
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
   const navigate = (path) => {
     if (window.location.pathname !== path) {
@@ -264,6 +266,7 @@ function App() {
     if (session?.user?.role) refreshRoleData(session.user.role);
   }, []);
   const logout = async () => {
+    setLogoutConfirmOpen(false);
     await authService.logout();
     setSession(null);
     setApplications([]);
@@ -389,7 +392,7 @@ function App() {
   }), [jobs, applications]);
 
   return (
-    <div className="app-shell">
+    <div className={"app-shell theme-" + theme} data-theme={theme}>
       {loading && (
         <div className="app-loader" role="status" aria-label="Loading 248 Works">
           <img className="loader-logo" src={logo} alt="248 Works" />
@@ -411,7 +414,7 @@ function App() {
           {session?.user?.role === "Employer" && <button className={mode === "employer-dashboard" ? "nav-active" : ""} onClick={() => navigate("/employer/jobs")}>Manage Jobs</button>}
           {session && <button className={mode === "profile" ? "nav-active" : ""} onClick={() => navigate("/profile")}>Profile</button>}
           {session ? (
-            <button onClick={logout}>Sign out</button>
+            <button onClick={() => setLogoutConfirmOpen(true)}>Sign out</button>
           ) : (
             <span className="auth-actions">
               <button className="topbar-signup" onClick={() => openAuth("login", "JobSeeker")}>Join Us</button>
@@ -684,6 +687,13 @@ function App() {
             <div><div className="eyebrow">ACCOUNT & PROFESSIONAL IDENTITY</div><h1>Profile</h1><p>Keep your details current so opportunities and employers have the right context.</p></div>
             <div className="profile-completion"><div className="completion-ring" style={{ "--completion": getProfileCompletion(profile || {}, session?.user?.role) + "%" }}><span>{getProfileCompletion(profile || {}, session?.user?.role)}%</span></div><div><strong>Profile strength</strong><small>{getProfileCompletion(profile || {}, session?.user?.role) >= 80 ? "Looking great" : "A few details can make your profile stronger"}</small></div></div>
           </div>
+          <section className="theme-settings" aria-labelledby="theme-settings-title">
+            <div className="theme-settings-copy"><span className="theme-settings-icon" aria-hidden="true">{theme === "dark" ? "☾" : "☀"}</span><div><h2 id="theme-settings-title">Appearance</h2><p>Choose the look that feels right. This setting is saved on this device.</p></div></div>
+            <div className="theme-switch" role="group" aria-label="Application theme">
+              <button type="button" className={theme === "light" ? "theme-option active" : "theme-option"} aria-pressed={theme === "light"} onClick={() => { setTheme("light"); try { localStorage.setItem("248works.theme", "light"); } catch {} }}>☀ Light</button>
+              <button type="button" className={theme === "dark" ? "theme-option active" : "theme-option"} aria-pressed={theme === "dark"} onClick={() => { setTheme("dark"); try { localStorage.setItem("248works.theme", "dark"); } catch {} }}>☾ Dark</button>
+            </div>
+          </section>
           <div className="profile-layout">
             <aside className="profile-aside">
               <div className="profile-identity">
@@ -854,13 +864,26 @@ function App() {
       )}
 
       <footer className="site-footer">
-        <span>© {new Date().getFullYear()} 248 Works</span>
-        <span>Telangana-first local hiring platform</span>
+        <span>© 2026 248 Works</span>
+        <span>Developed by <a href="https://www.omega-technologies.in" target="_blank" rel="noopener noreferrer">Omega Technologies</a></span>
         <span>
-          <a href="/privacy" style={{ color: "inherit" }}>Privacy</a> ·{" "}
-          <a href="/grievance" style={{ color: "inherit" }}>Grievance</a>
+          <a href="/privacy">Privacy</a> ·{" "}
+          <a href="/grievance">Grievance</a>
         </span>
       </footer>
+      {logoutConfirmOpen && (
+        <div className="modal-backdrop logout-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setLogoutConfirmOpen(false); }}>
+          <section className="modal logout-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title" aria-describedby="logout-confirm-description">
+            <div className="logout-confirm-icon" aria-hidden="true">↪</div>
+            <h2 id="logout-confirm-title">Sign out of 248 Works?</h2>
+            <p id="logout-confirm-description">You'll need to sign in again to access your profile, applications and saved jobs.</p>
+            <div className="logout-confirm-actions">
+              <button className="secondary" type="button" onClick={() => setLogoutConfirmOpen(false)}>Stay signed in</button>
+              <button className="primary logout-confirm-action" type="button" onClick={logout}>Yes, sign out</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {authOpen && (
         <AuthModal
