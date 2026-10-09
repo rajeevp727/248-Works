@@ -214,7 +214,7 @@ function swaPrincipal(request) {
     );
     if (!principal.userId || !email || !["google", "aad"].includes(provider)) return null;
     const firstClaim = (types) => claim(types);
-    const picture = firstClaim(["picture", "avatar", "photo", "http://schemas.microsoft.com/identity/claims/objectidentifier"]);
+    const picture = firstClaim(["picture", "avatar", "photo", "photo_url", "image"]);
     const phone = firstClaim(["phone", "phone_number", "mobilephone", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/mobilephone", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/homephone"]);
     const location = firstClaim(["address", "city", "locality", "location", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/streetaddress"]);
     const bio = firstClaim(["about", "bio", "description"]);
