@@ -157,7 +157,7 @@ export default function AuthModal({
               <button className="primary full" disabled={busy} onClick={confirmReplaceOldest}>
                 {busy ? "Updating sessions…" : "Confirm & log out oldest"}
               </button>
-              <button className="secondary full" disabled={busy} onClick={cancelReplacement}>
+              <button className="secondary full auth-cancel-button" disabled={busy} onClick={cancelReplacement}>
                 Cancel
               </button>
             </div>
