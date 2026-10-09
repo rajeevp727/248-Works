@@ -7,6 +7,31 @@ import logo from "./assets/248-works-logo.svg";
 
 const brand = "248 Works";
 
+const alertsStorageKey = (currentSession) => {
+  const identity = currentSession?.user?.id || currentSession?.user?.email;
+  return identity
+    ? "248works.jobAlerts:" + String(identity).trim().toLowerCase()
+    : "248works.jobAlerts:anonymous";
+};
+
+const readJobAlerts = (currentSession) => {
+  try {
+    const value = localStorage.getItem(alertsStorageKey(currentSession));
+    return value ? JSON.parse(value) : [];
+  } catch {
+    return [];
+  }
+};
+
+const getProfileCompletion = (profile, role) => {
+  const fields = role === "Employer"
+    ? [profile?.name, profile?.phone, profile?.location, profile?.company, profile?.businessType, profile?.headline, profile?.bio]
+    : [profile?.name, profile?.phone, profile?.location, profile?.headline, profile?.skills?.length, profile?.experience, profile?.education, profile?.resumeUrl];
+  const complete = fields.filter((value) => Array.isArray(value) ? value.length > 0 : String(value ?? "").trim().length > 0).length;
+  return Math.round((complete / fields.length) * 100);
+};
+
+
 const getRouteFromPathname = (pathname) => {
   switch (pathname) {
     case "/":
@@ -68,9 +93,12 @@ function App() {
   const [providerJobs, setProviderJobs] = useState([]);
   const [employerApplications, setEmployerApplications] = useState([]);
   const [savedJobs, setSavedJobs] = useState([]);
-  const [jobAlerts, setJobAlerts] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("248works.jobAlerts") || "[]"); } catch { return []; }
-  });
+  const [jobAlerts, setJobAlerts] = useState(() => readJobAlerts(authService.getSession()));
+  const [applicationSearch, setApplicationSearch] = useState("");
+  const [applicationStatusFilter, setApplicationStatusFilter] = useState("All");
+  const [savedSearch, setSavedSearch] = useState("");
+  const [alertSearch, setAlertSearch] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
   const [profile, setProfile] = useState(null);
   const [adminSummary, setAdminSummary] = useState(null);
   const [session, setSession] = useState(() => authService.getSession());
@@ -229,6 +257,10 @@ function App() {
   }, [mode, session]);
 
   useEffect(() => {
+    setJobAlerts(readJobAlerts(session));
+  }, [session?.user?.id, session?.user?.email]);
+
+  useEffect(() => {
     if (session?.user?.role) refreshRoleData(session.user.role);
   }, []);
   const logout = async () => {
@@ -270,11 +302,17 @@ function App() {
 
   const updateProfile = async (event) => {
     event.preventDefault();
+    if (profileSaving) return;
+    setProfileSaving(true);
     try {
       const result = await dataService.updateProfile(profile || {});
-      setProfile(result.profile);
+      setProfile(result.profile || result);
       showToast("Profile updated successfully.");
-    } catch (error) { showToast(error.message || "Unable to update profile."); }
+    } catch (error) {
+      showToast(error.message || "Unable to update profile. Please try again.");
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
 
@@ -287,7 +325,7 @@ function App() {
       ? jobAlerts.filter(a => JSON.stringify({query:a.query.toLowerCase(),category:a.category}) !== key)
       : [normalized, ...jobAlerts].slice(0, 10);
     setJobAlerts(next);
-    localStorage.setItem("248works.jobAlerts", JSON.stringify(next));
+    localStorage.setItem(alertsStorageKey(session), JSON.stringify(next));
     showToast(exists ? "Job alert removed." : "Job alert created for this search.");
   };
 
@@ -546,79 +584,147 @@ function App() {
       )}
 
       {mode === "applications" && (
-        <main className="page">
-          <div className="page-heading"><div><div className="eyebrow">TELANGANA JOB SEEKER</div><h1>My applications.</h1><p>Track the jobs you have applied for.</p></div></div>
-          <div className="application-list">
-            {applications.map((app) => (
-              <article key={app.id}>
-                <div><span className="pill">{app.status}</span><h3>{app.job?.title || "Job"}</h3><p className="muted">{app.job?.company} · {app.job?.location}, Telangana</p></div>
-                <span>{app.appliedOn}</span>
+        <main className="page workspace-page">
+          <div className="page-heading workspace-heading">
+            <div><div className="eyebrow">JOB SEEKER WORKSPACE</div><h1>Applications</h1><p>Follow every opportunity from submission to decision.</p></div>
+            <button className="secondary" onClick={() => navigate("/emplyee/jobs")}>Explore jobs <span aria-hidden="true">→</span></button>
+          </div>
+          <div className="workspace-metrics">
+            <article><span>Total applications</span><strong>{applications.length}</strong><small>All submitted applications</small></article>
+            <article><span>In progress</span><strong>{applications.filter(app => !["Selected", "Rejected"].includes(app.status)).length}</strong><small>Awaiting a final outcome</small></article>
+            <article><span>Shortlisted</span><strong>{applications.filter(app => ["Shortlisted", "Interview", "Selected"].includes(app.status)).length}</strong><small>Positive hiring progress</small></article>
+          </div>
+          <div className="workspace-toolbar">
+            <label className="toolbar-search"><span className="sr-only">Search applications</span><input value={applicationSearch} onChange={event => setApplicationSearch(event.target.value)} placeholder="Search by role, company or location" /></label>
+            <label className="toolbar-filter"><span className="sr-only">Filter application status</span><select value={applicationStatusFilter} onChange={event => setApplicationStatusFilter(event.target.value)}><option>All</option><option>Applied</option><option>Viewed</option><option>Shortlisted</option><option>Interview</option><option>Selected</option><option>Rejected</option></select></label>
+          </div>
+          <div className="application-list workspace-list">
+            {applications.filter(app => {
+              const haystack = [app.job?.title, app.job?.company, app.job?.location, app.status].join(" ").toLowerCase();
+              return (applicationStatusFilter === "All" || app.status === applicationStatusFilter) && haystack.includes(applicationSearch.trim().toLowerCase());
+            }).map(app => (
+              <article className="application-row" key={app.id}>
+                <div className="application-company-mark" aria-hidden="true">{String(app.job?.company || "J").trim().slice(0,1).toUpperCase()}</div>
+                <div className="application-row-main">
+                  <div className="application-row-title"><h3>{app.job?.title || "Job opportunity"}</h3><span className={"status-pill status-" + String(app.status || "applied").toLowerCase().replace(/\s+/g, "-")}>{app.status || "Applied"}</span></div>
+                  <p>{app.job?.company || "Company"} <span aria-hidden="true">·</span> {app.job?.location || "Telangana"}</p>
+                  <small>Applied {app.appliedOn || "recently"}</small>
+                </div>
+                {app.job && <button className="secondary small" onClick={() => setSelectedJob(app.job)}>View job</button>}
               </article>
             ))}
-            {!applications.length && <div className="empty">You have not applied to any Telangana jobs yet.</div>}
           </div>
+          {!applications.length && <div className="empty workspace-empty"><div className="empty-icon" aria-hidden="true">↗</div><h2>Your next opportunity starts here</h2><p>You haven't applied to a job yet. Explore current openings and track every application here.</p><button className="primary" onClick={() => navigate("/emplyee/jobs")}>Browse jobs</button></div>}
+          {applications.length > 0 && applications.filter(app => {
+            const haystack = [app.job?.title, app.job?.company, app.job?.location, app.status].join(" ").toLowerCase();
+            return (applicationStatusFilter === "All" || app.status === applicationStatusFilter) && haystack.includes(applicationSearch.trim().toLowerCase());
+          }).length === 0 && <div className="empty workspace-empty"><h2>No matching applications</h2><p>Try changing your search or status filter.</p><button className="secondary" onClick={() => { setApplicationSearch(""); setApplicationStatusFilter("All"); }}>Clear filters</button></div>}
         </main>
       )}
 
-
-
       {mode === "alerts" && (
-        <main className="page">
-          <div className="page-heading"><div><div className="eyebrow">JOB SEEKER</div><h1>Job alerts.</h1><p>Save searches so you can return to the same hiring criteria quickly.</p></div></div>
-          <div className="management-list">
-            {jobAlerts.map((alert,index)=><article key={index}><div><span className="pill">{alert.category}</span><h3>{alert.query || "All Telangana jobs"}</h3><p className="muted">Search alert created {new Date(alert.createdAt).toLocaleDateString("en-IN")}</p></div><button className="secondary small" onClick={()=>{const next=jobAlerts.filter((_,i)=>i!==index);setJobAlerts(next);localStorage.setItem("248works.jobAlerts",JSON.stringify(next));}}>Remove</button></article>)}
+        <main className="page workspace-page">
+          <div className="page-heading workspace-heading">
+            <div><div className="eyebrow">PERSONALISED DISCOVERY</div><h1>Job alerts</h1><p>Keep your saved search criteria organised and return to matching jobs anytime.</p></div>
+            <button className="primary" onClick={() => navigate("/emplyee/jobs")}>Create an alert <span aria-hidden="true">→</span></button>
           </div>
-          {!jobAlerts.length && <div className="empty">No job alerts yet. Create one from Find Jobs after entering your preferred search.</div>}
+          <div className="workspace-note"><span className="note-icon" aria-hidden="true">i</span><p>Alerts currently save your search preferences in this browser profile. Email or push notifications are not enabled yet.</p></div>
+          <div className="workspace-toolbar">
+            <label className="toolbar-search"><span className="sr-only">Search saved alerts</span><input value={alertSearch} onChange={event => setAlertSearch(event.target.value)} placeholder="Find an alert by keyword or category" /></label>
+            <span className="toolbar-count">{jobAlerts.length} of 10 alerts saved</span>
+          </div>
+          <div className="alert-grid">
+            {jobAlerts.filter(alert => [alert.query, alert.category].join(" ").toLowerCase().includes(alertSearch.trim().toLowerCase())).map((alert, index) => (
+              <article className="alert-card" key={String(alert.createdAt || "") + "-" + index}>
+                <div className="alert-card-top"><span className="alert-icon" aria-hidden="true">⌕</span><span className="pill">{alert.category}</span></div>
+                <h2>{alert.query || "All Telangana jobs"}</h2>
+                <p className="muted">Created {alert.createdAt && !Number.isNaN(new Date(alert.createdAt).getTime()) ? new Date(alert.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "recently"}</p>
+                <div className="alert-card-actions">
+                  <button className="primary small" onClick={() => { setQuery(alert.query || ""); setCategory(alert.category || "All"); navigate("/emplyee/jobs"); }}>View matching jobs</button>
+                  <button className="secondary small" onClick={() => { const next = jobAlerts.filter((_, i) => i !== index); setJobAlerts(next); localStorage.setItem(alertsStorageKey(session), JSON.stringify(next)); showToast("Job alert removed."); }}>Remove</button>
+                </div>
+              </article>
+            ))}
+          </div>
+          {!jobAlerts.length && <div className="empty workspace-empty"><div className="empty-icon" aria-hidden="true">⌕</div><h2>No job alerts yet</h2><p>Create an alert from Find Jobs to keep a search you want to revisit.</p><button className="primary" onClick={() => navigate("/emplyee/jobs")}>Find jobs</button></div>}
+          {jobAlerts.length > 0 && !jobAlerts.some(alert => [alert.query, alert.category].join(" ").toLowerCase().includes(alertSearch.trim().toLowerCase())) && <div className="empty workspace-empty"><h2>No alerts match that search</h2><button className="secondary" onClick={() => setAlertSearch("")}>Clear search</button></div>}
         </main>
       )}
 
       {mode === "saved" && (
-        <main className="page">
-          <div className="page-heading"><div><div className="eyebrow">JOB SEEKER</div><h1>Saved jobs.</h1><p>Keep interesting Telangana opportunities in one place.</p></div></div>
-          <div className="job-grid">
-            {savedJobs.map((job) => (
-              <article className="job-card" key={job.id}>
-                <div className="job-top"><span className="pill">{job.category}</span><span>{job.posted}</span></div>
+        <main className="page workspace-page">
+          <div className="page-heading workspace-heading">
+            <div><div className="eyebrow">YOUR SHORTLIST</div><h1>Saved jobs</h1><p>Keep promising opportunities close and come back when you're ready.</p></div>
+            <button className="primary" onClick={() => navigate("/emplyee/jobs")}>Discover jobs <span aria-hidden="true">→</span></button>
+          </div>
+          <div className="workspace-toolbar">
+            <label className="toolbar-search"><span className="sr-only">Search saved jobs</span><input value={savedSearch} onChange={event => setSavedSearch(event.target.value)} placeholder="Search saved roles, companies or locations" /></label>
+            <span className="toolbar-count">{savedJobs.length} saved</span>
+          </div>
+          <div className="job-grid workspace-job-grid">
+            {savedJobs.filter(job => [job.title, job.company, job.location, job.category].join(" ").toLowerCase().includes(savedSearch.trim().toLowerCase())).map(job => (
+              <article className="job-card workspace-job-card" key={job.id}>
+                <div className="job-top"><span className="pill">{job.category || "Opportunity"}</span><span>{job.posted || "Recently posted"}</span></div>
                 <h3>{job.title}</h3><strong>{job.company}</strong>
-                <p className="muted">📍 {job.location}, Telangana · {job.type}</p>
-                <div className="salary">{job.salary}</div>
-                <p>{job.description}</p>
-                <div className="job-footer"><button className="secondary small" onClick={() => saveJob(job.id)}>Remove</button><button className="primary small" onClick={() => setSelectedJob(job)}>View Job</button></div>
+                <p className="muted">📍 {job.location}, Telangana <span aria-hidden="true">·</span> {job.type || "Full-time"}</p>
+                <div className="salary">{job.salary || "Salary not specified"}</div>
+                <p>{job.description || "Contact the employer for further details about this role."}</p>
+                <div className="job-footer"><button className="secondary small" onClick={() => saveJob(job.id)}>Remove from saved</button><button className="primary small" onClick={() => setSelectedJob(job)}>View job</button></div>
               </article>
             ))}
           </div>
-          {!savedJobs.length && <div className="empty">No saved jobs yet. Save jobs from Find Jobs to see them here.</div>}
+          {!savedJobs.length && <div className="empty workspace-empty"><div className="empty-icon" aria-hidden="true">☆</div><h2>Build your shortlist</h2><p>Save jobs that interest you and they'll be collected here for easy access.</p><button className="primary" onClick={() => navigate("/emplyee/jobs")}>Browse jobs</button></div>}
+          {savedJobs.length > 0 && !savedJobs.some(job => [job.title, job.company, job.location, job.category].join(" ").toLowerCase().includes(savedSearch.trim().toLowerCase())) && <div className="empty workspace-empty"><h2>No saved jobs match that search</h2><button className="secondary" onClick={() => setSavedSearch("")}>Clear search</button></div>}
         </main>
       )}
 
-      {mode === "profile" && profile && (
-        <main className="page">
-          <div className="page-heading"><div><div className="eyebrow">{session?.user?.role === "Employer" ? "EMPLOYER PROFILE" : "JOB SEEKER PROFILE"}</div><h1>Your profile.</h1><p>Keep your information current so the right people can find you.</p></div></div>
-          <form className="form-card profile-card" onSubmit={updateProfile}>
-            <div className="two-col">
-              <label>Full name<input value={profile.name || ""} onChange={e=>setProfile({...profile,name:e.target.value})} /></label>
-              <label>Phone<input value={profile.phone || ""} onChange={e=>setProfile({...profile,phone:e.target.value})} /></label>
-            </div>
-            <div className="two-col">
-              <label>Location<input value={profile.location || ""} onChange={e=>setProfile({...profile,location:e.target.value})} placeholder="Hyderabad" /></label>
-              <label>Headline<input value={profile.headline || ""} onChange={e=>setProfile({...profile,headline:e.target.value})} placeholder="e.g. Retail Sales Professional" /></label>
-            </div>
-            {session?.user?.role === "JobSeeker" ? <>
-              <label>Skills<input value={(profile.skills || []).join(", ")} onChange={e=>setProfile({...profile,skills:e.target.value.split(",").map(v=>v.trim()).filter(Boolean)})} placeholder="Sales, Customer service, POS" /></label>
-              <div className="two-col">
-                <label>Experience<input value={profile.experience || ""} onChange={e=>setProfile({...profile,experience:e.target.value})} placeholder="2 years" /></label>
-                <label>Education<input value={profile.education || ""} onChange={e=>setProfile({...profile,education:e.target.value})} placeholder="Intermediate / Degree" /></label>
+      {mode === "profile" && (
+        <main className="page workspace-page">
+          <div className="page-heading workspace-heading">
+            <div><div className="eyebrow">ACCOUNT & PROFESSIONAL IDENTITY</div><h1>Profile</h1><p>Keep your details current so opportunities and employers have the right context.</p></div>
+            <div className="profile-completion"><div className="completion-ring" style={{ "--completion": getProfileCompletion(profile || {}, session?.user?.role) + "%" }}><span>{getProfileCompletion(profile || {}, session?.user?.role)}%</span></div><div><strong>Profile strength</strong><small>{getProfileCompletion(profile || {}, session?.user?.role) >= 80 ? "Looking great" : "A few details can make your profile stronger"}</small></div></div>
+          </div>
+          <div className="profile-layout">
+            <aside className="profile-aside">
+              <div className="profile-identity">
+                <div className="profile-avatar" aria-hidden="true">{String(profile?.name || session?.user?.name || session?.user?.email || "U").trim().slice(0,1).toUpperCase()}</div>
+                <h2>{profile?.name || session?.user?.name || "Your name"}</h2>
+                <p>{profile?.headline || (session?.user?.role === "Employer" ? "Employer account" : "Job seeker")}</p>
+                <span className="role-badge">{session?.user?.role === "Employer" ? "Employer" : "Job seeker"}</span>
               </div>
-              <label>Resume link<input value={profile.resumeUrl || ""} onChange={e=>setProfile({...profile,resumeUrl:e.target.value})} placeholder="https://..." /></label>
-            </> : <>
+              <div className="profile-account-meta"><span>Account email</span><strong>{profile?.email || session?.user?.email || "Not available"}</strong><span>Account type</span><strong>{session?.user?.role || profile?.role || "JobSeeker"}</strong></div>
+              <div className="profile-tip"><strong>Make it count</strong><p>A clear headline, current location and a few relevant details help your profile stand out.</p></div>
+            </aside>
+            <form className="form-card profile-card profile-form" onSubmit={updateProfile}>
+              <div className="form-section-heading"><div><h2>Basic information</h2><p>These details help identify and contact you.</p></div><span className="form-section-index">01</span></div>
               <div className="two-col">
-                <label>Business name<input value={profile.company || ""} onChange={e=>setProfile({...profile,company:e.target.value})} /></label>
-                <label>Business type<input value={profile.businessType || ""} onChange={e=>setProfile({...profile,businessType:e.target.value})} placeholder="Retail, Restaurant, Services..." /></label>
+                <label>Full name <span className="required-mark" aria-hidden="true">*</span><input required maxLength="120" autoComplete="name" value={profile?.name || ""} onChange={event => setProfile({ ...(profile || {}), name: event.target.value })} placeholder="Your full name" /></label>
+                <label>Phone number<input type="tel" maxLength="30" autoComplete="tel" value={profile?.phone || ""} onChange={event => setProfile({ ...(profile || {}), phone: event.target.value })} placeholder="+91 98765 43210" /></label>
               </div>
-            </>}
-            <label>About<input value={profile.bio || ""} onChange={e=>setProfile({...profile,bio:e.target.value})} placeholder="A short introduction" /></label>
-            <button className="primary" type="submit">Save Profile</button>
-          </form>
+              <div className="two-col">
+                <label>Location<input maxLength="100" autoComplete="address-level2" value={profile?.location || ""} onChange={event => setProfile({ ...(profile || {}), location: event.target.value })} placeholder="Hyderabad, Telangana" /></label>
+                <label>Professional headline<input maxLength="180" value={profile?.headline || ""} onChange={event => setProfile({ ...(profile || {}), headline: event.target.value })} placeholder={session?.user?.role === "Employer" ? "e.g. Hiring for a growing retail business" : "e.g. Retail sales professional"} /></label>
+              </div>
+              {session?.user?.role === "JobSeeker" ? <>
+                <div className="form-section-heading profile-section-spaced"><div><h2>Career details</h2><p>Help employers understand your strengths and experience.</p></div><span className="form-section-index">02</span></div>
+                <label>Skills <span className="field-hint">Separate skills with commas</span><input value={(profile?.skills || []).join(", ")} onChange={event => setProfile({ ...(profile || {}), skills: event.target.value.split(",").map(value => value.trim()).filter(Boolean).slice(0,30) })} placeholder="Sales, customer service, inventory" /></label>
+                <div className="two-col">
+                  <label>Experience<input maxLength="120" value={profile?.experience || ""} onChange={event => setProfile({ ...(profile || {}), experience: event.target.value })} placeholder="e.g. 2 years / Fresher" /></label>
+                  <label>Education<input maxLength="180" value={profile?.education || ""} onChange={event => setProfile({ ...(profile || {}), education: event.target.value })} placeholder="e.g. Intermediate, Degree" /></label>
+                </div>
+                <label>Resume URL <span className="field-hint">Optional · use a shareable HTTPS link</span><input type="url" maxLength="500" value={profile?.resumeUrl || ""} onChange={event => setProfile({ ...(profile || {}), resumeUrl: event.target.value })} placeholder="https://..." /></label>
+              </> : <>
+                <div className="form-section-heading profile-section-spaced"><div><h2>Business details</h2><p>Give candidates useful context about your organisation.</p></div><span className="form-section-index">02</span></div>
+                <div className="two-col">
+                  <label>Business name<input maxLength="160" value={profile?.company || ""} onChange={event => setProfile({ ...(profile || {}), company: event.target.value })} placeholder="Registered or trading name" /></label>
+                  <label>Business type<input maxLength="120" value={profile?.businessType || ""} onChange={event => setProfile({ ...(profile || {}), businessType: event.target.value })} placeholder="Retail, restaurant, services..." /></label>
+                </div>
+              </>}
+              <div className="form-section-heading profile-section-spaced"><div><h2>About you</h2><p>A short introduction is enough; avoid sharing sensitive personal information.</p></div><span className="form-section-index">03</span></div>
+              <label>Introduction<textarea rows="4" maxLength="2000" value={profile?.bio || ""} onChange={event => setProfile({ ...(profile || {}), bio: event.target.value })} placeholder="Share a brief introduction, your strengths or what you're looking for." /></label>
+              <div className="profile-form-footer"><span className="field-hint">Your changes are saved to your 248 Works account.</span><button className="primary" type="submit" disabled={profileSaving}>{profileSaving ? "Saving changes…" : "Save profile"}</button></div>
+            </form>
+          </div>
         </main>
       )}
 
